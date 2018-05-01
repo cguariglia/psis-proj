@@ -15,7 +15,7 @@ int clipboard_connect(char * clipboard_dir){
     // --- Socket setup ---
     // fd creation
     if ((client_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-        perror("client socket creation");
+        //perror("client socket creation");
         return(-1);
     }
     // server address
@@ -23,7 +23,7 @@ int clipboard_connect(char * clipboard_dir){
     strcpy(server_addr.sun_path, SERVER_ADDRESS);
     // connect to server
     if (connect(client_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1) {
-        perror("client socket connection");
+        //perror("client socket connection");
         return(-1);
     }
 
