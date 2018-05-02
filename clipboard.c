@@ -38,18 +38,18 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
     request c_msg;
     c_msg.type = COPY;
     c_msg.region = region;
-    if ((c_msg->data = malloc(count)) == NULL) {
+    if ((c_msg.data = malloc(count)) == NULL) {
         //perror("Memory allocation error in copy operation");
         return 0;
     }
-    memcpy(c_msg->data, buf, count);
+    memcpy(c_msg.data, buf, count);
 
     // send request: data to copy + region
     write(clipboard_id, (void *) c_msg, sizeof(c_msg));
 
     // process reply: bytes written
     int c_re;
-    if (read(clipboard_id, (void *) &c_re, sizeof(c_re)) < sizeof(c_re)) {
+    if (read(clipboard_id, (void *) &c_re, sizeof(c_re)) < sizeof(c_re)) {  //dúvida de contexto: devíamos pôr sizeof(int) no último sizeof?
         /* data expected is a single integer; if not enough
          * bytes are read, the whole message is discarded */
         return 0;
@@ -66,7 +66,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     request p_msg;
     p_msg.type = PASTE;
     p_msg.region = region;
-    p_msg->data = NULL;
+    p_msg.data = NULL;
 
     // send request: region
     write(clipboard_id, (void *) p_msg, sizeof(p_msg));
@@ -75,7 +75,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     void *p_re;
     int num_bytes = read(clipboard_id, p_re, sizeof(p_re));
 
-    if (num_bytes == -1) return 0;  // read error
+    if (num_bytes < sizeof(p_re)) return 0; // read error
 
     if ((buf = malloc(num_bytes)) == NULL) {
         //perror("Memory allocation error in paste operation");
