@@ -1,11 +1,12 @@
-#include <sys/types.h>
+// ?? //
+#include <stdio.h>
+#include <stdlib.h>
+// ?? //
 
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <unistd.h>
 
 #include "clipboard.h"
 
@@ -74,19 +75,6 @@ int main(){
                 // do sth? idk
                 break;
         }
-
-
-
     }
-
-
-
-
-
-
-
-
-
 	exit(0);
-
 }

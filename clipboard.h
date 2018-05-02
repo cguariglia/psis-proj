@@ -1,6 +1,9 @@
+#include <stdio.h>
+#include <stdlib.h>
+//#include <sys/types.h>
+
 #define SERVER_ADDRESS "./cbserver"    // MUDAR
 #define SERVER_BACKLOG 5
-//#include <sys/types.h>
 
 // Messages exchanged between server and clients
 typedef struct request {
