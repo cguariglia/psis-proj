@@ -9,7 +9,7 @@
 typedef struct request {
     enum {COPY, PASTE, WAIT} type;  // request type
     int region;                     // region to copy to/paste from
-    void *data;                     // data copied to clipboard
+    void *data;                     // pointer to data to copy to clipboard
 } request; // OY M8 confirmar com stores se se mantém aqui, pq cbserver.c também precisa
 // .h extra só com isto? ^
 

@@ -8,7 +8,7 @@
 # gotsa make it like this ^
 
 CC=gcc
-CFLAGS=-std=C11 -Wall -Wextra -pedantic
+CFLAGS=-std=c11 -Wall -Wextra -pedantic
 LDLIBS=
 #LDFLAGS=-Linclude		# se usarmos aquela estrutura po projeto, descomenta-se isto
 

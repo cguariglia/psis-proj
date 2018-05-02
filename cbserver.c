@@ -18,9 +18,7 @@ void interrupt_f(int signum){
 
 int main(){
 	struct sockaddr_un server_addr;
-    struct sockaddr_un client_addr;
     int server_fd, client_fd;
-    socklen_t client_addr_size;
     void *cb[10] = {0};
 
     printf("Initiating setup...\n");
@@ -56,19 +54,20 @@ int main(){
         if (read(client_fd, (void *) &req, sizeof(req)) < sizeof(req)) {
             //idk????não vale a pena tentar ler só bocados da mensagem;  // read error
         }
+        int num_bytes;
         switch (req.type) {
             case COPY:
-                int num_bytes = sizeof(req.data);
+                num_bytes = sizeof(req.data);
                 memcpy(cb[req.region], req.data, num_bytes);
                 // check if nothing was copied?
-                write(client_fd, (void *) num_bytes, sizeof(num_bytes))
+                write(client_fd, (void *) &num_bytes, sizeof(num_bytes));
                 // acho que não é preciso verificar se se mandou um inteiro completo, porque a função do clipboard já verifica isso
                 /*if ( < sizeof(num_bytes)) {
                     //houve asneira e não se passou um inteiro completo
                 }*/
                 break;
             case PASTE:
-                write(client_fd, cb[req.region], sizeof(cb[req.region]);
+                write(client_fd, cb[req.region], sizeof(cb[req.region]));
                 // client checks for bad data
                 break;
             default:
