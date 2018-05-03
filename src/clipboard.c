@@ -8,7 +8,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "clipboard.h"
+#include <clipboard.h>
 
 int clipboard_connect(char * clipboard_dir){
 	struct sockaddr_un server_addr;

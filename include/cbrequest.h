@@ -1,4 +1,4 @@
-#include <sys/types>.h
+#include <sys/types.h>
 
 // Messages exchanged between server and clients
 typedef struct request {

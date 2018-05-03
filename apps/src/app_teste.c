@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "clipboard.h"
+#include <clipboard.h>
+
 int main(){
     int fd = clipboard_connect(SERVER_ADDRESS);
 

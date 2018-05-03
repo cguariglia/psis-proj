@@ -8,7 +8,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "clipboard.h"
+#include <clipboard.h>
 
 void interrupt_f(int signum){
 	printf("Terminating...\n");

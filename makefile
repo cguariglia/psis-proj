@@ -5,11 +5,10 @@
 #  |_ src
 #  |_ [makefile]
 #
-# gotsa make it like this ^
 
 CC=gcc
 CFLAGS=-std=c11 -Wall -Wextra -pedantic
-CPPFLAGS=-Linclude
+CPPFLAGS=-Iinclude
 LDLIBS=
 
 APPDIR=apps
@@ -20,14 +19,16 @@ SRCDIR=src
 
 SERVERDEPS=
 
-help usage:
-	echo "Usage: make [apps/server]"
-#include/cbrequest.h
-lib: clipboard.c clipboard.h
+$(LIBDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
-server: cbserver.o clipboard.o
-	$(CC) $(CFLAGS)
+help usage:
+	echo "Usage: make [apps/server]"
+
+lib: $(LIBDIR)/clipboard.o
+
+server: $(LIBDIR)/cbserver.o $(LIBDIR)/clipboard.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS)
 
 apps: app_teste.o clipboard.o
 
