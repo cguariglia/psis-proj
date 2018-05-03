@@ -41,17 +41,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
     c_msg.type = COPY;
     c_msg.region = region;
     c_msg.data = buf;
-
-    /* no need to make a copy of whatever *buf is pointing to,
-     * just throw that same pointer at the server's face and
-     * let it do the copying, because it's the same machine!
-     * (i.e. same physical memory)
-     *
-    if ((c_msg.data = malloc(count)) == NULL) {
-        //perror("Memory allocation error in copy operation");
-        return 0;
-    }
-    memcpy(c_msg.data, buf, count);*/
+    c_msg.data_size = count;
 
     // send request: data to copy + region
     write(clipboard_id, (void *) &c_msg, sizeof(c_msg));
@@ -78,6 +68,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     p_msg.type = PASTE;
     p_msg.region = region;
     p_msg.data = NULL;
+    c_msg.data_size = count;
 
     // send request: region
     write(clipboard_id, (void *) &p_msg, sizeof(p_msg));

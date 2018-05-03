@@ -13,27 +13,24 @@ LDLIBS=
 
 APPDIR=apps
 BINDIR=bin
-INCDIR=include
 LIBDIR=lib
 SRCDIR=src
 
-SERVERDEPS=
-
 $(LIBDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 help usage:
-	echo "Usage: make [apps/server]"
+	echo "Usage: make [server/lib/app]"
 
 lib: $(LIBDIR)/clipboard.o
 
-server: $(LIBDIR)/cbserver.o $(LIBDIR)/clipboard.o
+server: $(LIBDIR)/cbserver.o lib
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS)
 
-apps: app_teste.o clipboard.o
+app: app_teste.o lib
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(APPDIR)/$@ $(LDLIBS)
 
-app_teste.o: app_teste.c clipboard.h
+.PHONY: clean
 
-cbserver.o: cbserver.c clipboard.h include/cbrequest.h
-
-clipboard.o: clipboard.c clipboard.h include/cbrequest.h
+clean:
+	rm -f $(LIBDIR)/*.o
