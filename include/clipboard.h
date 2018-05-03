@@ -1,17 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-//#include <sys/types.h>
+#include <sys/types.h>
+
+#include <cbrequest.h>  // added with -I flag
 
 #define SERVER_ADDRESS "./cbserver"    // MUDAR
 #define SERVER_BACKLOG 5
-
-// Messages exchanged between server and clients
-typedef struct request {
-    enum {COPY, PASTE, WAIT} type;  // request type
-    int region;                     // region to copy to/paste from
-    void *data;                     // pointer to data to copy to clipboard
-} request; // OY M8 confirmar com stores se se mantém aqui, pq cbserver.c também precisa
-// .h extra só com isto? ^
 
 /*
  * clipboard_connect:   Connects to a clipboard

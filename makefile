@@ -9,18 +9,30 @@
 
 CC=gcc
 CFLAGS=-std=c11 -Wall -Wextra -pedantic
+CPPFLAGS=-Linclude
 LDLIBS=
-#LDFLAGS=-Linclude		# se usarmos aquela estrutura po projeto, descomenta-se isto
+
+APPDIR=apps
+BINDIR=bin
+INCDIR=include
+LIBDIR=lib
+SRCDIR=src
+
+SERVERDEPS=
 
 help usage:
 	echo "Usage: make [apps/server]"
+#include/cbrequest.h
+lib: clipboard.c clipboard.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 server: cbserver.o clipboard.o
+	$(CC) $(CFLAGS)
 
 apps: app_teste.o clipboard.o
 
 app_teste.o: app_teste.c clipboard.h
 
-cbserver.o: cbserver.c clipboard.h
+cbserver.o: cbserver.c clipboard.h include/cbrequest.h
 
-clipboard.o: clipboard.c clipboard.h
+clipboard.o: clipboard.c clipboard.h include/cbrequest.h
