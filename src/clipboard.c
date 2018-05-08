@@ -68,7 +68,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     p_msg.type = PASTE;
     p_msg.region = region;
     p_msg.data = NULL;
-    c_msg.data_size = count;
+    p_msg.data_size = count;
 
     // send request: region
     write(clipboard_id, (void *) &p_msg, sizeof(p_msg));
