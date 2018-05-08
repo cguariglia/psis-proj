@@ -50,7 +50,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
     /* unnecessary??? now the client only sends a pointer,
      * not an actual copy of the data */
     int c_re;
-    if (read(clipboard_id, (void *) &c_re, sizeof(c_re)) < sizeof(c_re)) {  //dúvida de contexto: devíamos pôr sizeof(int) no último sizeof?
+    if (read(clipboard_id, (void *) &c_re, sizeof(c_re)) < (ssize_t) sizeof(c_re)) {  //dúvida de contexto: devíamos pôr sizeof(int) no último sizeof?
         /* data expected is a single integer; if not enough
          * bytes are read, the whole message is discarded */
         return 0;
@@ -75,21 +75,21 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 
     // process reply: data + bytes of data received
     void *p_re = NULL;
-    int num_bytes = read(clipboard_id, p_re, sizeof(p_re));
+    ssize_t num_bytes = read(clipboard_id, p_re, sizeof(p_re));
 
-    if (read(clipboard_id, p_re, sizeof(p_re)) < sizeof(p_re)) return 0; // read error
+    if (num_bytes < (ssize_t) sizeof(p_re)) return 0; // read error
 
-    if ((buf = malloc(num_bytes)) == NULL) {
-        //perror("Memory allocation error in paste operation");
-        // could also be that num_bytes == 0, which is still valid
-        return 0;
-    }
-
-    //
+    // limit pasted data to requested size
     if (num_bytes > count) {
         num_bytes = count;
     }
 
+    if ((buf = malloc(num_bytes)) == NULL) {
+        //perror("Memory allocation error in paste operation");
+        // could also be that num_bytes == 0, which is still valid -- NOT!
+        // num_bytes == 0 is considered an error i guess
+        return 0;
+    }
     memcpy(buf, p_re, num_bytes);
 
     return num_bytes;

@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 
 #include <cbrequest.h>  // added with -I flag
 
@@ -37,7 +36,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count);
  *
  * int clipboard_id:    clipboard id
  * int region:          region [0-9]
- * void *buf:           pointer to data to be copied to the clipboard
+ * void *buf:           pointer to data to be copied to the clipboard; as to be manually freed afterwards
  * size_t count:        length of data pointed by buf
  *
  * Returns:             positive integer = nr. of bytes copied

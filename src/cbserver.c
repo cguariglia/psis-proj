@@ -1,12 +1,13 @@
 // ?? //
-#include <stdio.h>
-#include <stdlib.h>
+//#include <stdio.h>
+//#include <stdlib.h>
 // ?? //
 
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <clipboard.h>
 
@@ -20,6 +21,8 @@ int main(){
 	struct sockaddr_un server_addr;
     int server_fd, client_fd;
     void *cb[10] = {0};
+
+    signal(SIGINT, interrupt_f);
 
     printf("Initiating setup...\n");
 
@@ -51,7 +54,7 @@ int main(){
             exit(-1);
         }
         request req;
-        if (read(client_fd, (void *) &req, sizeof(req)) < sizeof(req)) {
+        if (read(client_fd, (void *) &req, sizeof(req)) < (ssize_t) sizeof(req)) {
             //idk????não vale a pena tentar ler só bocados da mensagem;  // read error
         }
         //int num_bytes;
