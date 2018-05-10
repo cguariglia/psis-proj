@@ -10,12 +10,14 @@ int main(){
         exit(-1);
     }
 
-    char *data1 = "asdf";
-    char *data2 = "qwerty";
+    char data1[] = "asdf";
+    char data2[] = "qwerty";
     int region1 = 2;
     int region2 = 5;
     char str[5];
     int bytes;
+
+printf("sizeof(data1) == %d\nsizeof(data2) == %d\n", sizeof(data1), sizeof(data2));
 
     printf("Copying \"%s\" to clipboard region %d\n", data1, region1);
     bytes = clipboard_copy(fd, region1, (void *) data1, sizeof(data1));

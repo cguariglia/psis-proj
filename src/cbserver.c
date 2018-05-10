@@ -1,8 +1,3 @@
-// ?? //
-//#include <stdio.h>
-//#include <stdlib.h>
-// ?? //
-
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -20,7 +15,7 @@ void interrupt_f(int signum){
 int main(){
 	struct sockaddr_un server_addr;
     int server_fd, client_fd;
-    void *cb[10] = {0};
+    void *cb[10] = {NULL};
 
     signal(SIGINT, interrupt_f);
 
@@ -29,7 +24,7 @@ int main(){
     // --- Socket setup ---
     // fd creation
     if ((server_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-        perror("socket creation");
+        perror("Socket creation error");
         exit(-1);
     }
     // address definition
@@ -37,41 +32,48 @@ int main(){
     strcpy(server_addr.sun_path, SERVER_ADDRESS);
     // binding
     if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1) {
-        perror("socket bind");
+        perror("Socket address binding error");
         exit(-1);
     }
     // setup listen
     if (listen(server_fd, SERVER_BACKLOG) == -1) {
-        perror("listen");
+        perror("Listen setup error");
         exit(-1);
     }
 
     printf("Ready. Use ^C to stop.\n");
 
     while(1) {
-        if ((client_fd = accept(server_fd, NULL, NULL)) == -1) {    // in case shit happens, change NULL, NULL to (struct sockaddr *) &client_addr, &client_addr_size
-            perror("client accept");
+        if ((client_fd = accept(server_fd, NULL, NULL)) == -1) {
+            perror("Error accepting client");
             exit(-1);
+            // leave exit(-1)? why not just skip an iteration?
         }
         request req;
-        if (read(client_fd, (void *) &req, sizeof(req)) < (ssize_t) sizeof(req)) {
-            //idk????não vale a pena tentar ler só bocados da mensagem;  // read error
-        }
-        //int num_bytes;
-        switch (req.type) {
-            case COPY:
-                //num_bytes = sizeof(req.data);
-                memcpy(cb[req.region], req.data, req.data_size);    // memcpy is a flawless, god-tier function; it doesn't screw up
-                // write is kinda pointless now tbh
-                //write(client_fd, (void *) &num_bytes, sizeof(num_bytes));
-                break;
-            case PASTE:
-                write(client_fd, cb[req.region], sizeof(cb[req.region]));
-                // client checks for bad data
-                break;
-            default:
-                // do sth? idk
-                break;
+        if (read(client_fd, (void *) &req, sizeof(req)) == sizeof(req)) {
+            // TODO: what if the message was not read?
+            ssize_t bytes;  // bytes of data stored (COPY) or to send (PASTE/WAIT)
+            switch (req.type) {
+                case COPY:
+                    if (cb[req.region] != NULL) free(cb[req.region]);
+                    cb[req.region] = malloc(req.count);
+                    bytes = read(client_fd, cb[req.region], req.count
+
+                    ;/ AINDA NA' 'CABEI
+
+                    break;
+                case PASTE:
+                    // to do
+
+                    //write(client_fd, cb[req.region], sizeof(cb[req.region]));
+
+                    break;
+                case WAIT:
+                    // to do
+                    break;
+                default:
+                    break;
+            }
         }
     }
 	exit(0);

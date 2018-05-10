@@ -40,23 +40,22 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
     request c_msg;
     c_msg.type = COPY;
     c_msg.region = region;
-    c_msg.data = buf;
     c_msg.data_size = count;
 
-    // send request: data to copy + region
-    write(clipboard_id, (void *) &c_msg, sizeof(c_msg));
+    // send request
+    if (write(clipboard_id, (void *) &c_msg, sizeof(c_msg)) != sizeof(c_msg)) return 0;
 
-    // process reply: bytes written
-    /* unnecessary??? now the client only sends a pointer,
-     * not an actual copy of the data */
-    int c_re;
-    if (read(clipboard_id, (void *) &c_re, sizeof(c_re)) < (ssize_t) sizeof(c_re)) {  //dúvida de contexto: devíamos pôr sizeof(int) no último sizeof?
-        /* data expected is a single integer; if not enough
-         * bytes are read, the whole message is discarded */
-        return 0;
-    }
+    // send data
+    /* verifying this write is pointless as it will not cause errors server-side
+     * and the server will reply with how many bytes were read */
+    write(clipboard_id, buf, count);
 
-    return c_re;
+    // receive reply (bytes written)
+    ssize_t bytes_written;
+    if (read(clipboard_id, (void *) &bytes_written, sizeof(bytes_written)) != sizeof(bytes_written)) return 0;
+    if (bytes_written == -1) return 0;
+
+    return (int) bytes_written;
 }
 
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
@@ -67,30 +66,19 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     request p_msg;
     p_msg.type = PASTE;
     p_msg.region = region;
-    p_msg.data = NULL;
     p_msg.data_size = count;
 
-    // send request: region
-    write(clipboard_id, (void *) &p_msg, sizeof(p_msg));
+    // send request
+    if (write(clipboard_id, (void *) &p_msg, sizeof(p_msg)) != sizeof(p_msg)) return 0;
 
-    // process reply: data + bytes of data received
-    void *p_re = NULL;
-    ssize_t num_bytes = read(clipboard_id, p_re, sizeof(p_re));
+    // receive 1st reply (data size)
+    ssize_t expected_bytes;
+    if (read(clipboard_id, (void *) &expected_bytes, sizeof(expected_bytes)) != sizeof(expected_bytes)) return 0;
+    if (expected_bytes == -1) return 0;
 
-    if (num_bytes < (ssize_t) sizeof(p_re)) return 0; // read error
+    // receive 2nd reply (data)
+    ssize_t bytes_read;
+    if ((bytes_read = read(clipboard_id, buf, expected_bytes)) == -1) return 0;
 
-    // limit pasted data to requested size
-    if (num_bytes > count) {
-        num_bytes = count;
-    }
-
-    if ((buf = malloc(num_bytes)) == NULL) {
-        //perror("Memory allocation error in paste operation");
-        // could also be that num_bytes == 0, which is still valid -- NOT!
-        // num_bytes == 0 is considered an error i guess
-        return 0;
-    }
-    memcpy(buf, p_re, num_bytes);
-
-    return num_bytes;
+    return (int) bytes_read;
 }
