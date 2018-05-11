@@ -6,6 +6,11 @@
 
 #include <clipboard.h>
 
+typedef struct cb {     // clipboard region
+    void *data;
+    size_t data_size;
+} cb;
+
 void interrupt_f(int signum){
 	printf("Terminating...\n");
 	unlink(SERVER_ADDRESS);
@@ -15,7 +20,13 @@ void interrupt_f(int signum){
 int main(){
 	struct sockaddr_un server_addr;
     int server_fd, client_fd;
-    void *cb[10] = {NULL};
+    cb *clipboard[10];
+
+    // init clipboard
+    for (int i = 0; i < 10; i++) {
+        clipboard[i].data = NULL;
+        clipboard[i].data_size = 0;
+    }
 
     signal(SIGINT, interrupt_f);
 
@@ -55,20 +66,20 @@ int main(){
             ssize_t bytes;  // bytes of data stored (COPY) or to send (PASTE/WAIT)
             switch (req.type) {
                 case COPY:
-                    if (cb[req.region] != NULL) free(cb[req.region]);
-                    cb[req.region] = malloc(req.data_size);
-                    bytes = read(client_fd, cb[req.region], req.data_size);
+                    if (clipboard[req.region] != NULL) free(clipboard[req.region]);
+                    clipboard[req.region] = malloc(req.data_size);
+                    bytes = read(client_fd, clipboard[req.region], req.data_size);
                     write(client_fd, (void *) &bytes, sizeof(bytes));
 
-        printf("copy region %d: %s\n", req.region, (char *) cb[req.region]);
+        printf("copy region %d: %s\n", req.region, (char *) clipboard[req.region]);
 
                     break;
                 case PASTE:
-                    bytes = (sizeof(cb[req.region]) < req.data_size) ? sizeof(cb[req.region]) : req.data_size;
+                    bytes = (sizeof(clipboard[req.region]) < req.data_size) ? sizeof(clipboard[req.region]) : req.data_size;
                     if (write(client_fd, (void *) &bytes, sizeof(bytes)) != sizeof(bytes)) break;
-                    write(client_fd, cb[req.region], bytes);
+                    write(client_fd, clipboard[req.region], bytes);
 
-        printf("paste region %d: %s\n", req.region, (char *) cb[req.region]);
+        printf("paste region %d:\tbytes: %d\t clipboard[req.region]: %d\tdata_size: %d\n", req.region, (int) bytes, (int) sizeof(clipboard[req.region]), (int) req.data_size);
 
                     break;
                 case WAIT:
