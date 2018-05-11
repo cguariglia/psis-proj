@@ -42,13 +42,13 @@ int main(){
     }
 
     printf("Ready. Use ^C to stop.\n");
-
+    if ((client_fd = accept(server_fd, NULL, NULL)) == -1) {
+        perror("Error accepting client");
+        exit(-1);
+        // leave exit(-1)? why not just skip an iteration?
+    }
+    printf("accepted client with fd %d\n", client_fd);
     while(1) {
-        if ((client_fd = accept(server_fd, NULL, NULL)) == -1) {
-            perror("Error accepting client");
-            exit(-1);
-            // leave exit(-1)? why not just skip an iteration?
-        }
         request req;
         if (read(client_fd, (void *) &req, sizeof(req)) == sizeof(req)) {
             // TODO: what if the message was not read?
@@ -56,16 +56,19 @@ int main(){
             switch (req.type) {
                 case COPY:
                     if (cb[req.region] != NULL) free(cb[req.region]);
-                    cb[req.region] = malloc(req.count);
-                    bytes = read(client_fd, cb[req.region], req.count
+                    cb[req.region] = malloc(req.data_size);
+                    bytes = read(client_fd, cb[req.region], req.data_size);
+                    write(client_fd, (void *) &bytes, sizeof(bytes));
 
-                    ;/ AINDA NA' 'CABEI
+        printf("copy region %d: %s\n", req.region, (char *) cb[req.region]);
 
                     break;
                 case PASTE:
-                    // to do
+                    bytes = (sizeof(cb[req.region]) < req.data_size) ? sizeof(cb[req.region]) : req.data_size;
+                    if (write(client_fd, (void *) &bytes, sizeof(bytes)) != sizeof(bytes)) break;
+                    write(client_fd, cb[req.region], bytes);
 
-                    //write(client_fd, cb[req.region], sizeof(cb[req.region]));
+        printf("paste region %d: %s\n", req.region, (char *) cb[req.region]);
 
                     break;
                 case WAIT:

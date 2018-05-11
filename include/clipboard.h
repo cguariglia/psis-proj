@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <cbrequest.h>  // added with -I flag
+#include <cbrequest.h>
 
 #define SERVER_ADDRESS "./cbserver"    // MUDAR
 #define SERVER_BACKLOG 5
@@ -33,6 +33,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count);
 /*
  * clipboard_paste:     Copies data from a region in the local clipboard and
  *                      stores it in the memory pointed to by buf, up to a length of count
+ *                      buf must point to an already allocated memory region
  *
  * int clipboard_id:    clipboard id
  * int region:          region [0-9]

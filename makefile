@@ -7,7 +7,7 @@
 #
 
 CC=gcc
-CFLAGS=-std=c11 -Wall -Wextra -pedantic
+CFLAGS=-std=c11 -Wall -Wextra -pedantic -g
 CPPFLAGS=-Iinclude
 LDLIBS=
 
@@ -18,10 +18,10 @@ SRCDIR=src
 
 $(LIBDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
-	
+
 $(APPDIR)/$(LIBDIR)/%.o: $(APPDIR)/$(SRCDIR)/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
-	
+
 help usage:
 	echo "Usage: make [server/lib/app]"
 
@@ -29,7 +29,7 @@ lib: $(LIBDIR)/clipboard.o
 
 dirs_server:
 	mkdir -p $(BINDIR) $(LIBDIR)
-	
+
 dirs_apps:
 	mkdir -p $(APPDIR)/$(BINDIR) $(APPDIR)/$(LIBDIR) $(LIBDIR)
 
@@ -45,4 +45,4 @@ app: dirs_apps lib $(APPDIR)/$(LIBDIR)/app_teste.o
 .PHONY: clean
 
 clean:
-	rm -rf $(LIBDIR) $(BINDIR) $(APPDIR)/$(BINDIR) $(APPDIR)/$(LIBDIR) 
+	rm -rf $(LIBDIR) $(BINDIR) $(APPDIR)/$(BINDIR) $(APPDIR)/$(LIBDIR)
