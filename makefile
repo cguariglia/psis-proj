@@ -36,9 +36,6 @@ dirs_apps:
 server: dirs_server $(LIBDIR)/cbserver.o lib
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS) $(word 2,$^)
 
-#app: dirs_apps $(LIBDIR)/app_teste.o lib
-#	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS) $(word 2,$^)
-
 app: dirs_apps lib $(APPDIR)/$(LIBDIR)/app_teste.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/$@
 
@@ -46,3 +43,11 @@ app: dirs_apps lib $(APPDIR)/$(LIBDIR)/app_teste.o
 
 clean:
 	rm -rf $(LIBDIR) $(BINDIR) $(APPDIR)/$(BINDIR) $(APPDIR)/$(LIBDIR)
+
+
+inet: inet_server_test.c inet_client_test.c
+	gcc -Wall -Wextra -pedantic -o server inet_server_test.c
+	gcc -Wall -Wextra -pedantic -o client inet_client_test.c
+
+cleaninet:
+	rm server client
