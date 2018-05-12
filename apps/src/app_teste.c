@@ -12,6 +12,7 @@ int main(){
 
     char data1[] = "asdsdsdsdf";
     char data2[] = "qwerty1234";
+    char data3[] = "eheh replaced ya";
     int region1 = 2;
     int region2 = 5;
     char str[100];
@@ -33,6 +34,18 @@ printf("sizeof(data1) == %d\nsizeof(data2) == %d\n", sizeof(data1), sizeof(data2
 
     printf("Pasting data from clipboard region %d\n", region2);
     bytes = clipboard_paste(fd, region2, (void *) str, sizeof(data2));
+    printf("Pasted \"%s\", %d bytes\n", str, bytes);
+
+    printf("Copying \"%s\" to clipboard region %d\n", data3, region2);
+    bytes = clipboard_copy(fd, region2, (void *) data3, sizeof(data3));
+    printf("Copied %d bytes to clipboard\n", bytes);
+
+    printf("Pasting data from clipboard region %d\n", region2);
+    bytes = clipboard_paste(fd, region2, (void *) str, sizeof(data3));
+    printf("Pasted \"%s\", %d bytes\n", str, bytes);
+
+    printf("Trying to paste data3 from clipboard region %d\n", 3);
+    bytes = clipboard_paste(fd, 3, (void *) str, sizeof(data3));
     printf("Pasted \"%s\", %d bytes\n", str, bytes);
 
     exit(0);

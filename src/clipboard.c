@@ -74,7 +74,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     // receive 1st reply (data size)
     ssize_t expected_bytes;
     if (read(clipboard_id, (void *) &expected_bytes, sizeof(expected_bytes)) != sizeof(expected_bytes)) return 0;
-    if (expected_bytes <= 0) return 0;
+    if (expected_bytes <= 0) {printf("\tfailed to paste from reg. %d\n", region); return 0;}
 
     // receive 2nd reply (data)
     ssize_t bytes_read;
