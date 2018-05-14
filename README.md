@@ -1,3 +1,10 @@
-# psis-proj
+# TODO
+- Threads
+- Sync
+- TCP sockets
 
-PSis master race todas as outras opcionais são lixo
+# Tweaks
+- Server shutdown routine
+  - Disconnect from all clients and remote clipboards
+- Optimize rwlock to a fair queue-like system
+- ...
