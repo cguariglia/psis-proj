@@ -8,8 +8,8 @@
 
 CC=gcc
 CFLAGS=-std=c11 -Wall -Wextra -pedantic -g
-CPPFLAGS=-Iinclude
-LDLIBS=
+CPPFLAGS=-Iinclude -D_POSIX_C_SOURCE="200809L"
+LDLIBS=-pthread
 
 APPDIR=apps
 BINDIR=bin
