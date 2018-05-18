@@ -1,4 +1,5 @@
 # TODO
+- Thread cancellation: cancellation handlers! check where they're needed and get them done
 - Server main.c
 - Finish local client api functions
 - Remote client communication/functions
