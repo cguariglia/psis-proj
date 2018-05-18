@@ -1,7 +1,9 @@
 # TODO
-- Threads
-- Sync
-- TCP sockets
+- Server main.c
+- Finish local client api functions
+- Remote client communication/functions
+- Decide on the communication/synchronisation system between remote clipboards
+- Take care of signals (block on every thread except the main one, that handles them)
 
 # Tweaks
 - Server shutdown routine
