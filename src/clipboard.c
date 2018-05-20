@@ -82,3 +82,15 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 
     return (int) bytes_read;
 }
+
+void clipboard_close(int clipboard_id){
+    request c_msg;
+    c_msg.type = CLOSE;
+    c_msg.region = -1;      // unused
+    c_msg.data_size = 0;    // unused
+
+    // send message
+    write(clipboard_id, (void *) &c_msg, sizeof(c_msg));    // error checking is pointless...
+
+    return;
+}
