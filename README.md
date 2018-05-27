@@ -9,6 +9,7 @@
 # Tweaks
 - Server shutdown routine
   - Disconnect from all clients and remote clipboards
-- Optimize rwlock to a fair queue-like system
+- [old] Optimize rwlock to a fair queue-like system
+- Optimize rwlock with a "last pasted" cache
 - Meme cleansing
 - ...
