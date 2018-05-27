@@ -21,7 +21,8 @@ cb clipboard[10];
 client *local_client_list = NULL;
 client *remote_client_list = NULL;
 enum {SINGLE, CONNECTED} mode;
-int running = 1;
+int connected_fd;   // socket used to communicate with parent in CONNECTED mode
+pthread_mutex_t sync_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void interrupt_f(int signum){
 	printf("Terminating...\n");
@@ -33,6 +34,7 @@ void interrupt_f(int signum){
         // ainda podem existir locks; melhorar no final e acrescentar tipo variáveis de estado?
         pthread_rwlock_destroy(&clipboard[i].rwlock);
     }
+    pthread_mutex_destroy(&sync_lock);
 	unlink(SERVER_ADDRESS);
 
 	exit(0);
@@ -49,11 +51,20 @@ int is_port(char *str){
 }
 
 int main(int argc, char **argv){
-
+    // argument syntax check
     if ((argc != 1 && argc != 4) ||
         (argc == 4 && (strcmp(argv[1], "-c") != 0 || !is_ipv4(argv[2]) || !is_port(argv[3]))) {
         printf("Usage (single mode):\t%s\nUsage (connected mode):\t%s -c [IPv4 address] [port #]\n");
         exit(-1);
+    }
+
+    // arg syntax checking already done before, no need to repeat
+    if (argc == 1) {
+        mode = SINGLE;
+        printf("Starting local clipboard server in SINGLE mode.\n");
+    } else {
+        mode = CONNECTED;
+        printf("Starting local clipboard server in CONNECTED mode with parent clipboard @ %s:%s\n", argv[2], argv[3]);
     }
 
     // init clipboard
@@ -63,7 +74,7 @@ int main(int argc, char **argv){
         clipboard[i].rwlock = (pthread_rwlock_t) PTHREAD_RWLOCK_INITIALIZER;
     }
 
-    signal(SIGINT, interrupt_f);
+    //signal(SIGINT, interrupt_f);
 
     // create local socket
     struct sockaddr_un local_server_addr;
@@ -125,9 +136,49 @@ int main(int argc, char **argv){
         close(tcp_server_fd);
         ERROR("[TCP] Unable to retrieve socket port");
     }
-    printf("Server connected to port %hu\n", ntohs(tcp_server_addr.sin_port));
+    printf("Server is using port %hu\n", ntohs(tcp_server_addr.sin_port));
 
+    // connect to parent if running in CONNECTED mode
+    if (mode) {
+        struct sockaddr_in parent_addr;
 
+        // fd creation (stored globally)
+        if ((connected_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+            perror("[TCP] [CONNECTED mode] Socket creation error");
+            printf("Clipboard will run in SINGLE mode.\n");
+            mode = SINGLE;
+        }
+
+        // address definition
+        parent_addr.sin_family = AF_INET;
+        parent_addr.sin_port = htons(atous(argv[3]));
+        inet_aton(argv[2], &parent_addr.sin_addr);
+
+        // connection to server
+        if (connect(connected_fd, (struct sockaddr *) &parent_addr, sizeof(parent_addr)) == -1) {
+            close(connected_fd);
+            perror("[TCP] [CONNECTED mode] Unable to connect to parent");
+            printf("Clipboard will run in SINGLE mode.\n");
+            mode = SINGLE;
+        }
+    }
+
+    // block all signals for threads; let the main thread handle them
+    sigset_t sig_mask;
+    sigfillset(&sig_mask);
+    pthread_sigmask(SIG_BLOCK, &sig_mask, NULL);
+
+    // start threads
+    pthread_t local_accept_thread, remote_accept_thread;
+    client_type ct = LOCAL;
+    pthread_create(&local_accept_thread, NULL, &accept_clients, (void *) &ct);
+    ct = REMOTE;
+    pthread_create(&remote_accept_thread, NULL, &accept_clients, (void *) &ct);
+
+    // unblock signals
+    pthread_sigmask(SIG_UNBLOCK, &sig_mask, NULL);
+
+    // handle signals in main thread
 
 	exit(0);
 }
