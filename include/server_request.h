@@ -1,3 +1,6 @@
+#ifndef SERVER_REQUEST
+#define SERVER_REQUEST
+
 #include <sys/types.h>
 
 // Messages exchanged between server and clients
@@ -6,3 +9,5 @@ typedef struct request {
     int region;         // region to copy to/paste from
     size_t data_size;   // amount of data (in bytes) to copy/paste
 } request;
+
+#endif

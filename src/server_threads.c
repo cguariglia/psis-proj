@@ -1,14 +1,12 @@
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <pthread.h>
 
+#include <server_global.h>
 #include <server_threads.h>
-
-extern cb clipboard[10];
-extern client *local_client_list;
-extern client *remote_client_list;
-extern enum {SINGLE, CONNECTED} mode;
-extern pthread_mutex_t sync_lock;
 
 /* add a client to the list of connections
  * and place it at the end of the list
@@ -41,19 +39,19 @@ int add_client(int client_fd, client_type type){
 // void *type = client_type *type
 void *accept_clients(void *type){
     int client_fd;
-    char **type_str = {"UNIX", "TCP"};
+    char *type_str[] = {"UNIX", "TCP"};
     client_type ct = *(client_type *)type;
 
     if (ct != LOCAL || ct != REMOTE) pthread_exit(NULL);
 
     while(1) {
         // accept pending client connection requests
-        if ((client_fd = accept(server_fd, NULL, NULL)) == -1) {
-            perror("[%s] Unable to accept client", type_str[ct]);
+        if ((client_fd = accept(ct ? tcp_server_fd : local_server_fd, NULL, NULL)) == -1) {
+            printf("[%s] Unable to accept client", type_str[ct]);
         } else {
             // add connected client to list
             if (add_client(client_fd, ct) == -1) {
-                perror("[%s] Unable to add client", type_str[ct]);
+                printf("[%s] Unable to add client", type_str[ct]);
             }
         }
     }
@@ -75,6 +73,7 @@ void *local_client_handler(void *fd){
             ssize_t bytes;  // bytes of data stored (COPY) or to send (PASTE/WAIT)
             switch (req.type) {
                 case COPY:
+                {
                     void *buffer = malloc(req.data_size);
                     int8_t malloc_status = 0;   // -1 = error; defaults to 0 = success (most likely to happen)
                     if (buffer == NULL) {   // unable to allocate buffer
@@ -126,7 +125,7 @@ void *local_client_handler(void *fd){
                                     // reutilize req variable
                                     read(connected_fd, (void *) &req, sizeof(req)); // should work all the time, unless you're abusing the clipboard
 
-                                    if (req.data_size != bytes && realloc(buffer, req.data_size) != NULL) {
+                                    if ((ssize_t) req.data_size != bytes && realloc(buffer, req.data_size) != NULL) {
                                         // if the realloc succeeds, update the buffer size variable
                                         bytes = req.data_size;
                                     }
@@ -142,7 +141,8 @@ void *local_client_handler(void *fd){
                                     // store new data
                                     clipboard[req.region].data = buffer;
                                     clipboard[req.region].data_size = bytes;
-
+                                    clipboard[req.region].waiting = 0;
+                                    
                                     // unlock
                                     pthread_rwlock_unlock(&clipboard[req.region].rwlock);
                                 } while (req.region != region);
@@ -154,24 +154,25 @@ void *local_client_handler(void *fd){
                         }
                         // SINGLE mode
                         // broadcast to all children (if there are any)
-                        for (client aux = remote_client_list; aux != NULL; aux = aux->next) {
+                        for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
 
                             // still got shtuffs to do
 
                         }
 
                     }
-
-                    /* ok, i gotta write some shit down
-                     *
-                     * in a network, you cant have any mutexes, so everything has to go through the main parent so it decides what to sync
-                     * but locally, there are rwlocks, so you can just write to other places using the locks to prevent street race conditions
-                     * so, if my client handler wants to synchronize, it can just lock the access to connected_fd and write to it, right?
-                     *                             (with its children)           (using a standard mutex of course)
-                     */
-                    printf("copy region %d: %s\n", req.region, (char *) clipboard[req.region].data);
+        printf("copy region %d: %s\n", req.region, (char *) clipboard[req.region].data);
 
                     break;
+                }
+                case WAIT:
+                    pthread_rwlock_rdlock(&clipboard[req.region].rwlock);
+                    clipboard[req.region].waiting = 1;
+                    
+                    while(clipboard[req.region].waiting == 1)
+                        pthread_cond_wait(&clipboard[req.region].cond, &clipboard[req.region].cond_mut);
+                    
+                    pthread_rwlock_unlock(&clipboard[req.region].rwlock);
                 case PASTE:
                     // compared requested data size with stored data size and choose the lowest
                     bytes = (clipboard[req.region].data_size < req.data_size) ? clipboard[req.region].data_size : req.data_size;
@@ -191,12 +192,8 @@ void *local_client_handler(void *fd){
         printf("paste region %d:\tbytes: %d\t clipboard[req.region].data_size: %d\tdata_size: %d\n", req.region, (int) bytes, (int) clipboard[req.region].data_size, (int) req.data_size);
 
                     break;
-                case WAIT:
-
-                    // to do
-
-                    break;
                 case CLOSE:
+                {
                     // find the client, remove it from the list and store it in aux
                     client *aux = local_client_list;
                     if (local_client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
@@ -211,6 +208,7 @@ void *local_client_handler(void *fd){
                     close(client_fd);
                     pthread_exit(NULL);
                     break;
+                }
                 default:
                     break;
             }
@@ -251,8 +249,8 @@ void *remote_client_handler(void *fd){
                 case ASK_PARENT:
 
                     break;
-                case SYNC_CHILDREN;
-                    if ((buffer = malloc(recvd_req.data_size) == NULL) {
+                case SYNC_CHILDREN:
+                    if ((buffer = malloc(recvd_req.data_size)) == NULL) {
                         status = 0; // error
                         if (write(client_fd, &status, sizeof(status)) == sizeof(status)) {
                             request desync_req = {ASK_PARENT, recvd_req.region, clipboard[recvd_req.region].data_size};
