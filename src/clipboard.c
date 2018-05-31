@@ -46,6 +46,8 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
     // send request
     if (write(clipboard_id, (void *) &c_msg, sizeof(c_msg)) != sizeof(c_msg)) return 0;
 
+// add server malloc check read
+
     // send data
     /* verifying this write is pointless as it will not cause errors server-side
      * and the server will reply with how many bytes were read */
@@ -106,7 +108,7 @@ int clipboard_wait(int clipboard_id, int region, void *buf, size_t count) {
     ssize_t bytes_read;
     if ((bytes_read = read(clipboard_id, buf, expected_bytes)) == -1) return 0;
 
-    return (int) bytes_read;    
+    return (int) bytes_read;
 }
 
 void clipboard_close(int clipboard_id){

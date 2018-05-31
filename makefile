@@ -33,8 +33,8 @@ dirs_server:
 dirs_apps:
 	mkdir -p $(APPDIR)/$(BINDIR) $(APPDIR)/$(LIBDIR) $(LIBDIR)
 
-server: dirs_server lib $(LIBDIR)/server_global.o $(LIBDIR)/server_threads.o $(LIBDIR)/server.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS) $(wordlist 3, 5, $^)
+server: dirs_server lib $(LIBDIR)/server_global.o $(LIBDIR)/sync_protocol.o $(LIBDIR)/server_threads.o $(LIBDIR)/server.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS) $(wordlist 3, 6, $^)
 
 app: dirs_apps lib $(APPDIR)/$(LIBDIR)/app_teste.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/$@

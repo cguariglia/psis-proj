@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-//#include <cbrequest.h>
-
 #define SERVER_ADDRESS "./CLIPBOARD_SOCKET"
 #define SERVER_BACKLOG 10
 

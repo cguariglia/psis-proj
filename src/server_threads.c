@@ -6,7 +6,7 @@
 #include <pthread.h>
 
 #include <server_global.h>
-#include <server_threads.h>
+#include <sync_protocol.h>
 
 /* add a client to the list of connections
  * and place it at the end of the list
@@ -127,66 +127,29 @@ void *local_client_handler(void *fd){
 
                                     switch (req.type) {
                                         case DESYNC_CHILDREN:   // malloc error in the network; store directly in the clipboard, without buffering
-                                            // lock for writing
-                                            pthread_rwlock_wrlock(&clipboard[req.region].rwlock);
-
-                                            // free older data in region, if there is any
-                                            if (clipboard[req.region].data != NULL) free(clipboard[req.region].data);
-
-                                            // store new data
-                                            clipboard[req.region].data_size = read(connected_fd, &clipboard[req.region].data, req.data_size);
-
-                                            // unlock
-                                            pthread_rwlock_unlock(&clipboard[req.region].rwlock);
+                                            recv_desync_children(req.region, req.data_size);
 
                                             // set bytes to 0 to report to the API that an error happened
                                             bytes = 0;
+
+                                            send_desync_children(req.region);
+
                                             break;
                                         case SYNC_CHILDREN:
-                                            if ((ssize_t) req.data_size != bytes && realloc(buffer, req.data_size) != NULL) {
+                                            if ((ssize_t) req.data_size != bytes && ff_realloc(buffer, req.data_size) != NULL) {
                                                 // if the realloc succeeds, update the buffer size variable
                                                 bytes = req.data_size;
                                             }
                                             // if the realloc fails, store only up to the old buffer size (buffer is left untouched)
-                                            bytes = read(connected_fd, buffer, bytes);
 
-                                            // lock for writing
-                                            pthread_rwlock_wrlock(&clipboard[req.region].rwlock);
+                                            bytes = recv_sync_children(req.region, bytes, buffer);
 
-                                            // free older data in region, if there is any
-                                            if (clipboard[req.region].data != NULL) free(clipboard[req.region].data);
+                                            send_sync_children(req.region, bytes, buffer);
 
-                                            // store new data
-                                            clipboard[req.region].data = buffer;
-                                            clipboard[req.region].data_size = bytes;
-
-                                            // unlock
-                                            pthread_rwlock_unlock(&clipboard[req.region].rwlock);
                                             break;
                                         default:
                                             break;
                                     }
-
-                                    if ((ssize_t) req.data_size != bytes && realloc(buffer, req.data_size) != NULL) {
-                                        // if the realloc succeeds, update the buffer size variable
-                                        bytes = req.data_size;
-                                    }
-                                    // if the realloc fails, store only up to the old buffer size (buffer is left untouched)
-                                    bytes = read(connected_fd, buffer, bytes);
-
-                                    // lock for writing
-                                    pthread_rwlock_wrlock(&clipboard[req.region].rwlock);
-
-                                    // free older data in region, if there is any
-                                    if (clipboard[req.region].data != NULL) free(clipboard[req.region].data);
-
-                                    // store new data
-                                    clipboard[req.region].data = buffer;
-                                    clipboard[req.region].data_size = bytes;
-                                    clipboard[req.region].waiting = 0;
-
-                                    // unlock
-                                    pthread_rwlock_unlock(&clipboard[req.region].rwlock);
                                 } while (req.region != region);
 
                 // incomplete!!
@@ -201,6 +164,11 @@ void *local_client_handler(void *fd){
                             for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
 
                             }
+
+                /* DOES NOT GUARANTEE THAT CLIPBOARDS OUTSIDE OF THE PATH
+                 * BETWEEN THIS AND THE SINGLE MODE SERVER SYNC'D CORRECTLY
+                 * /shrug
+                 */
 
                         }
 
@@ -302,7 +270,25 @@ void *remote_client_handler(void *fd){
                             }
                         }
                     } else {
+                        // receive incoming data
+                        bytes = read(client_fd, buffer, recvd_req.data_size);
 
+                        if (mode) { // CONNECTED mode
+                            request ask_req = {ASK_PARENT, recvd_req.region, bytes};
+                            write(connected_fd, (void *) &ask_req, sizeof(ask_req)); // receiver checks message integrity
+
+                            malloc_status = -1;  // 0 = success; defaults to -1 = error, to avoid verifying the next read (if the read fails, use -1)
+                            read(connected_fd, (void *) &malloc_status, sizeof(malloc_status));    // read a single byte
+
+                            if (malloc_status == -1) {
+                                // send DESYNC request
+
+            // IDFK PLS HALP
+
+                            }
+
+
+                        }
                     }
 
                     break;
@@ -327,7 +313,9 @@ void *remote_client_handler(void *fd){
                     } else {
                         bytes = read(client_fd, buffer, recvd_req.data_size);
 
-                        // lock for writing
+                // send_SYNC
+
+                        /*// lock for writing
                         pthread_rwlock_wrlock(&clipboard[recvd_req.region].rwlock);
 
                         // free older data in region, if there is any
@@ -345,7 +333,7 @@ void *remote_client_handler(void *fd){
                         for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
                             write(aux->fd, &sync_req, sizeof(sync_req));
                             write(aux->fd, &clipboard[recvd_req.region].data, bytes);
-                        }
+                        }*/
                     }
                     break;
                 case DESYNC_PARENT:

@@ -8,3 +8,21 @@ int connected_fd;   // socket used to communicate with parent in CONNECTED mode
 pthread_mutex_t sync_lock = PTHREAD_MUTEX_INITIALIZER;
 int local_server_fd;
 int tcp_server_fd;
+
+/* Free-first realloc
+ * Assures that original pointer is freed first,
+ * to reduce the chances of a malloc error;
+ * Doesn't preserve old contents of ptr
+ *
+ * ptr == NULL  <=>  malloc
+ * size == 0    <=>  free, return NULL
+ *
+ * Returns a pointer to the newly allocated memory
+ * or NULL if size == 0 or an error happened
+ */
+void *ff_realloc(void *ptr, size_t size){
+    if (ptr != NULL || size == 0) free(ptr);
+    if (size == 0) return NULL;
+    ptr = malloc(size);
+    return ptr;
+}
