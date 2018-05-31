@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <clipboard.h>
+#include <server_request.h>
 
 int clipboard_connect(char * clipboard_dir){
 	struct sockaddr_un server_addr;
@@ -81,6 +82,31 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     if ((bytes_read = read(clipboard_id, buf, expected_bytes)) == -1) return 0;
 
     return (int) bytes_read;
+}
+
+int clipboard_wait(int clipboard_id, int region, void *buf, size_t count) {
+    // check if region is valid
+    if (region < 0 || region > 9) return 0;
+
+    // compose request
+    request w_msg;
+    w_msg.type = WAIT;
+    w_msg.region = region;
+    w_msg.data_size = count;
+
+    // send request
+    if (write(clipboard_id, (void *) &w_msg, sizeof(w_msg)) != sizeof(w_msg)) return 0;
+
+    // receive 1st reply (data size)
+    ssize_t expected_bytes;
+    if (read(clipboard_id, (void *) &expected_bytes, sizeof(expected_bytes)) != sizeof(expected_bytes)) return 0;
+    if (expected_bytes <= 0) {printf("\tfailed to paste from reg. %d\n", region); return 0;}
+
+    // receive 2nd reply (data)
+    ssize_t bytes_read;
+    if ((bytes_read = read(clipboard_id, buf, expected_bytes)) == -1) return 0;
+
+    return (int) bytes_read;    
 }
 
 void clipboard_close(int clipboard_id){

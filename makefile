@@ -8,7 +8,7 @@
 
 CC=gcc
 CFLAGS=-std=c11 -Wall -Wextra -pedantic -g
-CPPFLAGS=-Iinclude -D_POSIX_C_SOURCE="200809L"
+CPPFLAGS=-Iinclude -D_POSIX_C_SOURCE="200809L" -D_DEFAULT_SOURCE
 LDLIBS=-pthread
 
 APPDIR=apps
@@ -33,8 +33,8 @@ dirs_server:
 dirs_apps:
 	mkdir -p $(APPDIR)/$(BINDIR) $(APPDIR)/$(LIBDIR) $(LIBDIR)
 
-server: dirs_server $(LIBDIR)/cbserver.o lib
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS) $(word 2,$^)
+server: dirs_server lib $(LIBDIR)/server_global.o $(LIBDIR)/server_threads.o $(LIBDIR)/server.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS) $(wordlist 3, 5, $^)
 
 app: dirs_apps lib $(APPDIR)/$(LIBDIR)/app_teste.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/$@
