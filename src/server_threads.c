@@ -143,7 +143,7 @@ void *local_client_handler(void *fd){
                                             bytes = 0;
                                             break;
                                         case SYNC_CHILDREN:
-                                            if (req.data_size != bytes && realloc(buffer, req.data_size) != NULL) {
+                                            if ((ssize_t) req.data_size != bytes && realloc(buffer, req.data_size) != NULL) {
                                                 // if the realloc succeeds, update the buffer size variable
                                                 bytes = req.data_size;
                                             }
@@ -274,7 +274,7 @@ void *remote_client_handler(void *fd){
 
             switch (recvd_req.type) {
                 case ASK_PARENT:
-                    if ((buffer = malloc(recvd_req.data_size) == NULL) {
+                    if ((buffer = malloc(recvd_req.data_size)) == NULL) {
                         /* In case of memory allocation error, the clipboard network will
                          * attempt to revert the synchronization process by synchronizing the
                          * data that was previously in the requested region through a different
@@ -283,7 +283,7 @@ void *remote_client_handler(void *fd){
                         // send malloc failure message
                         // client won't reply with the data if it reads this error
                         malloc_status = -1;
-                        write(client_fd, &malloc_status, sizeof(malloc_status)) == sizeof(malloc_status));
+                        write(client_fd, &malloc_status, sizeof(malloc_status));
 
                         // attempt to undo synchronization
                         if (mode) { // CONNECTED
@@ -306,8 +306,8 @@ void *remote_client_handler(void *fd){
                     }
 
                     break;
-                case SYNC_CHILDREN;
-                    if ((buffer = malloc(recvd_req.data_size) == NULL) {
+                case SYNC_CHILDREN:
+                    if ((buffer = malloc(recvd_req.data_size)) == NULL) {
                         /* In case of memory allocation error, the clipboard network will
                          * attempt to revert the synchronization process by synchronizing the
                          * data that was previously in the requested region through a different
@@ -316,7 +316,7 @@ void *remote_client_handler(void *fd){
                         // send malloc failure message
                         // client won't reply with the data if it reads this error
                         malloc_status = -1;
-                        write(client_fd, &malloc_status, sizeof(malloc_status)) == sizeof(malloc_status));
+                        write(client_fd, &malloc_status, sizeof(malloc_status));
 
                         // attempt to undo synchronization
                         // SYNC_CHILDREN will always be received by children, i.e. servers in CONNECTED mode
@@ -328,17 +328,17 @@ void *remote_client_handler(void *fd){
                         bytes = read(client_fd, buffer, recvd_req.data_size);
 
                         // lock for writing
-                        pthread_rwlock_wrlock(&clipboard[req.region].rwlock);
+                        pthread_rwlock_wrlock(&clipboard[recvd_req.region].rwlock);
 
                         // free older data in region, if there is any
-                        if (clipboard[req.region].data != NULL) free(clipboard[req.region].data);
+                        if (clipboard[recvd_req.region].data != NULL) free(clipboard[recvd_req.region].data);
 
                         // store new data
-                        clipboard[req.region].data = buffer;
-                        clipboard[req.region].data_size = bytes;
+                        clipboard[recvd_req.region].data = buffer;
+                        clipboard[recvd_req.region].data_size = bytes;
 
                         // unlock
-                        pthread_rwlock_unlock(&clipboard[req.region].rwlock);
+                        pthread_rwlock_unlock(&clipboard[recvd_req.region].rwlock);
 
                         // broadcast to children
                         request sync_req = {SYNC_CHILDREN, recvd_req.region, recvd_req.data_size};
