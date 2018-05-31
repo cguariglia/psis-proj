@@ -1,3 +1,6 @@
+#ifndef CLIPBOARD_H
+#define CLIPBOARD_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -68,3 +71,5 @@ int clipboard_wait(int clipboard_id, int region, void *buf, size_t count);
  * Returns:             nothing
  */
 void clipboard_close(int clipboard_id);
+
+#endif

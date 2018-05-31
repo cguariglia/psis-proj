@@ -1,28 +1,17 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
 
 #include <clipboard.h>
+#include <server_global.h>
 #include <server_threads.h>
 
 #define ERROR(A) {perror(A); exit(-1);}
-
-// clipboard region
-typedef struct cb {
-    void *data;
-    size_t data_size;
-    pthread_rwlock_t rwlock;
-} cb;
-
-cb clipboard[10];
-client *local_client_list = NULL;
-client *remote_client_list = NULL;
-enum {SINGLE, CONNECTED} mode;
-int connected_fd;   // socket used to communicate with parent in CONNECTED mode
-pthread_mutex_t sync_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void interrupt_f(int signum){
 	printf("Terminating...\n");
@@ -41,20 +30,29 @@ void interrupt_f(int signum){
 }
 
 int is_ipv4(char *str){
-    uint8_t buf;  // buffer required for scanf to count successful reads
+    u_int8_t buf;  // buffer required for scanf to count successful reads
     return (sscanf(str, "%hhu.%hhu.%hhu.%hhu", &buf, &buf, &buf, &buf) == 4);
 }
 
 int is_port(char *str){
-    uint16_t buf;   // buffer
+    u_int16_t buf;   // buffer
     return sscanf(str, "%hu", &buf);
+}
+
+u_int16_t atous(const char *str) {
+    u_int16_t num;
+    if (sscanf(str, "%hu", &num)) {
+        return num;
+    } else {
+        return 0;
+    }
 }
 
 int main(int argc, char **argv){
     // argument syntax check
     if ((argc != 1 && argc != 4) ||
-        (argc == 4 && (strcmp(argv[1], "-c") != 0 || !is_ipv4(argv[2]) || !is_port(argv[3]))) {
-        printf("Usage (single mode):\t%s\nUsage (connected mode):\t%s -c [IPv4 address] [port #]\n");
+        (argc == 4 && (strcmp(argv[1], "-c") != 0 || !is_ipv4(argv[2]) || !is_port(argv[3])))) {
+        printf("Usage (single mode):\t%s\nUsage (connected mode):\t%s -c [IPv4 address] [port #]\n", argv[0], argv[0]);
         exit(-1);
     }
 
@@ -72,13 +70,14 @@ int main(int argc, char **argv){
         clipboard[i].data = NULL;
         clipboard[i].data_size = 0;
         clipboard[i].rwlock = (pthread_rwlock_t) PTHREAD_RWLOCK_INITIALIZER;
+        clipboard[i].cond = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
+        clipboard[i].cond_mut = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
     }
 
     //signal(SIGINT, interrupt_f);
 
     // create local socket
     struct sockaddr_un local_server_addr;
-    int local_server_fd;
 
     // socket creation
     if ((local_server_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) ERROR("[UNIX] Socket creation error")
@@ -89,13 +88,13 @@ int main(int argc, char **argv){
 
     // binding
     if (bind(local_server_fd, (struct sockaddr *) &local_server_addr, sizeof(local_server_addr)) == -1) {
-        unlink(local_server_fd);
+        unlink(SERVER_ADDRESS);
         ERROR("[UNIX] Socket address binding error");
     }
 
     // setup listen
     if (listen(local_server_fd, SERVER_BACKLOG) == -1) {
-        unlink(local_server_fd);
+        unlink(SERVER_ADDRESS);
         ERROR("[UNIX] Listen setup error");
     }
 
@@ -103,36 +102,35 @@ int main(int argc, char **argv){
     // create TCP socket
     struct sockaddr_in tcp_server_addr;
     socklen_t tcp_server_addr_len = sizeof(tcp_server_addr);
-    int tcp_server_fd;
-
+    
     // socket creation
     if ((tcp_server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        unlink(local_server_fd);
+        unlink(SERVER_ADDRESS);
         ERROR("[TCP] Socket creation error");
     }
 
     // address definition
-    tcp_server_addr.sun_family = AF_INET;
+    tcp_server_addr.sin_family = AF_INET;
     tcp_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     tcp_server_addr.sin_port = 0;
 
     // binding
     if (bind(tcp_server_fd, (struct sockaddr *) &tcp_server_addr, tcp_server_addr_len) == -1) {
-        unlink(local_server_fd);
+        unlink(SERVER_ADDRESS);
         close(tcp_server_fd);
         ERROR("[TCP] Socket address binding error");
     }
 
     // setup listen
     if (listen(tcp_server_fd, SERVER_BACKLOG) == -1) {
-        unlink(local_server_fd);
+        unlink(SERVER_ADDRESS);
         close(tcp_server_fd);
         ERROR("[TCP] Listen setup error");
     }
 
     // print used port
     if (getsockname(tcp_server_fd, (struct sockaddr *) &tcp_server_addr, &tcp_server_addr_len) != 0) {
-        unlink(local_server_fd);
+        unlink(SERVER_ADDRESS);
         close(tcp_server_fd);
         ERROR("[TCP] Unable to retrieve socket port");
     }

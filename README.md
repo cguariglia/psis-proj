@@ -1,4 +1,5 @@
 # TODO
+- Can we use the new DESYNC request to fix the no-error-check-possible issue?
 - Thread cancellation: cancellation handlers! check where they're needed and get them done
 - Server main.c
 - Finish local client api functions
