@@ -28,7 +28,7 @@ int add_client(int client_fd, client_type type){
     new_client->next = NULL;
 
     // setup a thread to manage communication with the new client
-    if (pthread_create(&new_client->thread_id, NULL, type ? &remote_client_handler : &local_client_handler, (void *) &client_fd) != 0) {
+    if (pthread_create(&new_client->thread_id, NULL, type ? &remote_peer_handler : &local_client_handler, (void *) &client_fd) != 0) {
         free(new_client);
         close(client_fd);
         return -1;
@@ -48,11 +48,15 @@ void *accept_clients(void *type){
     while(1) {
         // accept pending client connection requests
         if ((client_fd = accept(ct ? tcp_server_fd : local_server_fd, NULL, NULL)) == -1) {
-            printf("[%s] Unable to accept client", type_str[ct]);
+            printf("[%s] Unable to accept client: ", type_str[ct]);
+            fflush(stdout); // previous printf doesn't end with '\n' so it may not be printed
+            perror(NULL);
         } else {
             // add connected client to list
             if (add_client(client_fd, ct) == -1) {
-                printf("[%s] Unable to add client", type_str[ct]);
+                printf("[%s] Unable to add client: ", type_str[ct]);
+                fflush(stdout); // previous printf doesn't end with '\n' so it may not be printed
+                perror(NULL);
             }
         }
     }
@@ -60,10 +64,13 @@ void *accept_clients(void *type){
     pthread_exit(NULL);
 }
 
-void close_connection(int client_fd, client *client_list) {
+void close_connection(void *args) {
+    int client_fd = *(int *)args[0];
+    client client_list = (client *)args[1];
+
     // find the client, remove it from the list and store it in aux
     client *aux = client_list;
-    
+
     if (client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
         client_list = client_list->next;
         free(aux);
@@ -73,22 +80,24 @@ void close_connection(int client_fd, client *client_list) {
         aux->next = aux->next->next;
         free(aux_free);
     }
-    
+
     close(client_fd);
 }
 
 void *local_client_handler(void *fd){
     int client_fd = *(int *) fd;
     request req;
+    ssize_t bytes;  // bytes of data stored (COPY) or to send (PASTE/WAIT)
+    ssize_t read_status;
 
     printf("[DEBUG] accepted client with fd %d\n", client_fd);
 
-    while(1) {
-        if (read(client_fd, (void *) &req, sizeof(req)) == sizeof(req)) {
+    void *args[2] = {fd, (void *) local_client_handler};
+    pthread_cleanup_push(close_connection, args);
 
-            // TODO: what if the message was not read?
-
-            ssize_t bytes;  // bytes of data stored (COPY) or to send (PASTE/WAIT)
+    do {
+        read_status = read(client_fd, (void *) &req, sizeof(req));
+        if (read_status == sizeof(req)) {
             switch (req.type) {
                 case COPY:
                 {
@@ -98,7 +107,7 @@ void *local_client_handler(void *fd){
                         // report unsuccessful malloc
                         malloc_status = -1;
                         write(client_fd, (void *) &malloc_status, sizeof(malloc_status));   // receiver checks message integrity
-                    } else {
+                    } else {                // buffer successfuly allocated
                         // store requested region
                         int region = req.region;
 
@@ -110,18 +119,12 @@ void *local_client_handler(void *fd){
 
                         // synchronize with clipboard network
                         if (mode) { // if in CONNECTED mode
-                            req.type = ASK_PARENT;  // reutilize req variable; region and data_size are the same
-                            write(connected_fd, (void *) &req, sizeof(req)); // receiver checks message integrity
-
-                            malloc_status = -1;  // 0 = success; defaults to -1 = error, to avoid verifying the next read (if the read fails, use -1)
-                            read(connected_fd, (void *) &malloc_status, sizeof(malloc_status));    // read a single byte
-
-                            if (malloc_status == -1) {
-
-            // IDFK PLS HALP
-
-                            } else {    // malloc_status == 0
+                            if (send_ask_parent(req.region, bytes, buffer) == -1) {
+                                bytes = 0;  // set bytes to 0 to report to the API that an error happened
+                            } else {
+                                // send data
                                 write(connected_fd, buffer, bytes);
+
                                 // wait for parent's response
 
                                 /* Error checking here is not possible because it would require
@@ -145,7 +148,7 @@ void *local_client_handler(void *fd){
 
                                     switch (req.type) {
                                         case DESYNC_CHILDREN:   // malloc error in the network; store directly in the clipboard, without buffering
-                                            recv_desync_children(req.region, req.data_size);
+                                            store_not_buffered(req.region, req.data_size);
 
                                             // set bytes to 0 to report to the API that an error happened
                                             bytes = 0;
@@ -160,8 +163,7 @@ void *local_client_handler(void *fd){
                                             }
                                             // if the realloc fails, store only up to the old buffer size (buffer is left untouched)
 
-                                            bytes = recv_sync_children(req.region, bytes, buffer);
-
+                                            bytes = store_buffered(req.region, bytes, buffer);
                                             send_sync_children(req.region, bytes);
 
                                             break;
@@ -169,84 +171,85 @@ void *local_client_handler(void *fd){
                                             break;
                                     }
                                 } while (req.region != region);
-
-                // incomplete!!
-
-                                // reply with stored data size in requested region
-                                write(client_fd, (void *) &bytes, sizeof(bytes));
-
                             }
-
                         } else {    // SINGLE mode
-                            // broadcast to all children (if there are any)
-                            for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
-
-                            }
-
-                /* DOES NOT GUARANTEE THAT CLIPBOARDS OUTSIDE OF THE PATH
-                 * BETWEEN THIS AND THE SINGLE MODE SERVER SYNC'D CORRECTLY
-                 * /shrug
-                 */
-
+                            bytes = store_buffered(req.region, bytes, buffer);
+                            send_sync_children(req.region, bytes, buffer);
                         }
 
+                        // reply with stored data size in requested region
+                        write(client_fd, (void *) &bytes, sizeof(bytes));
                     }
-        printf("copy region %d: %s\n", req.region, (char *) clipboard[req.region].data);
+
+        malloc_status ? printf("oops\n") : printf("copy region %d: %s\n", req.region, (char *) clipboard[req.region].data);
 
                     break;
                 }
                 case WAIT:
-                    pthread_rwlock_rdlock(&clipboard[req.region].rwlock);
+                    pthread_mutex_lock(&clipboard[req.region].cond_mut);
                     clipboard[req.region].waiting = 1;
 
-                    while(clipboard[req.region].waiting == 1)
+                    while(clipboard[req.region].waiting)
                         pthread_cond_wait(&clipboard[req.region].cond, &clipboard[req.region].cond_mut);
 
-                    pthread_rwlock_unlock(&clipboard[req.region].rwlock);
+                    pthread_mutex_unlock(&clipboard[req.region].cond_mut);
                 case PASTE:
-                    // compared requested data size with stored data size and choose the lowest
+                    // if no data is stored in the given region reply with 0
+                    if (clipboard[req.region].data_size == 0 || clipboard[req.region].data == NULL) {
+                        bytes = 0;
+                        write(client_fd, (void *) &bytes, sizeof(bytes));
+                        break;
+                    }
+
+                    // use stored data size if it is lower than the requested data size
                     bytes = (clipboard[req.region].data_size < req.data_size) ? clipboard[req.region].data_size : req.data_size;
 
-                    /* if no data is stored in the given region (data == NULL, data_size == 0),
-                     * data_size value is sent regardless and but the client won't attempt to read data */
-                    if (write(client_fd, (void *) &bytes, sizeof(bytes)) != sizeof(bytes)) break;
                     // lock for reading
                     pthread_rwlock_rdlock(&clipboard[req.region].rwlock);
-                    if (clipboard[req.region].data != NULL) {
-                        write(client_fd, clipboard[req.region].data, bytes);
-                    }
+
+                    // send clipboard data
+                    write(client_fd, clipboard[req.region].data, bytes);
+
                     // unlock
                     pthread_rwlock_unlock(&clipboard[req.region].rwlock);
 
-                    /* write prettier code? ^ as in join the conditions and stuff */
         printf("paste region %d:\tbytes: %d\t clipboard[req.region].data_size: %d\tdata_size: %d\n", req.region, (int) bytes, (int) clipboard[req.region].data_size, (int) req.data_size);
 
                     break;
                 case CLOSE:
-                {
                     close_connection(client_fd, local_client_list);
                     pthread_exit(NULL);
                     break;
-                }
                 default:
                     break;
             }
         }
-    }
+    } while (read_status > 0);
+
+    pthread_cleanup_pop(1);
+    pthread_exit(NULL);
 }
 
-void *remote_client_handler(void *fd){
-    int client_fd = *(int *) fd;
+void disconnect_parent(void *noarg){
+    mode = SINGLE;
+    close(connected_fd);
+}
+
+void *remote_peer_handler(void *fd){
+    int peer_fd = *(int *) fd;
     request recvd_req;
-    ssize_t bytes;
+    ssize_t bytes, read_status;
     void *buffer = NULL;
     int8_t malloc_status;  // 0 = success, -1 = error
 
-    while(1) {
-        if (read(client_fd, (void *) &recvd_req, sizeof(recvd_req)) == sizeof(recvd_req)) {
+    void (*cleanup_routine)(void *) = (fd == connected_fd) ? disconnect_parent : close_connection;
+    void *args[2] = {fd, (void *) remote_client_list};
 
-            pthread_mutex_lock(&sync_lock);
+    pthread_cleanup_push(cleanup_routine, (fd == connected_fd) ? NULL : args);
 
+    do {
+        read_status = read(peer_fd, (void *) &recvd_req, sizeof(recvd_req));
+        if (read_status == sizeof(recvd_req)) {
             switch (recvd_req.type) {
                 case ASK_PARENT:
                     if ((buffer = malloc(recvd_req.data_size)) == NULL) {
@@ -256,48 +259,30 @@ void *remote_client_handler(void *fd){
                          * request that doesn't require buffer memory to be allocated.
                          */
                         // send malloc failure message
-                        // client won't reply with the data if it reads this error
+                        // client won't reply with the data if it detects an error
                         malloc_status = -1;
-                        write(client_fd, &malloc_status, sizeof(malloc_status));
+                        write(peer_fd, &malloc_status, sizeof(malloc_status));
 
                         // attempt to undo synchronization
                         if (mode) { // CONNECTED
-                            // send request to parent
-                            request desync_req = {DESYNC_PARENT, recvd_req.region, clipboard[recvd_req.region].data_size};
-                            write(connected_fd, &desync_req, sizeof(desync_req));
-                            // send original data
-                            write(connected_fd, &clipboard[recvd_req.region].data, clipboard[recvd_req.region].data_size);
+                            // ask parent for a DESYNC
+                            send_desync_parent(recvd_req.region);
                         } else {    // SINGLE
-                            // broadcast request to children
-                            request desync_req = {DESYNC_CHILDREN, recvd_req.region, clipboard[recvd_req.region].data_size};
-                            for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
-                                write(aux->fd, &desync_req, sizeof(desync_req));
-                                // send original data
-                                write(aux->fd, &clipboard[recvd_req.region].data, clipboard[recvd_req.region].data_size);
-                            }
+                            // broadcast DESYNC to children
+                            send_desync_children(recvd_req.region);
                         }
                     } else {
-                        // receive incoming data
-                        bytes = read(client_fd, buffer, recvd_req.data_size);
-
                         if (mode) { // CONNECTED mode
-                            request ask_req = {ASK_PARENT, recvd_req.region, bytes};
-                            write(connected_fd, (void *) &ask_req, sizeof(ask_req)); // receiver checks message integrity
+                            // receive incoming data
+                            bytes = read(peer_fd, buffer, recvd_req.data_size);
 
-                            malloc_status = -1;  // 0 = success; defaults to -1 = error, to avoid verifying the next read (if the read fails, use -1)
-                            read(connected_fd, (void *) &malloc_status, sizeof(malloc_status));    // read a single byte
-
-                            if (malloc_status == -1) {
-                                // send DESYNC request
-
-            // IDFK PLS HALP
-
-                            }
-
-
+                            if (send_ask_parent(recvd_req.region, bytes, buffer) == -1)
+                                send_desync_parent(recvd_req.region);
+                        } else {    // SINGLE mode
+                            bytes = store_buffered(recvd_req.region, recvd_req.data_size, buffer);
+                            send_sync_children(recvd_req.region, bytes);
                         }
                     }
-
                     break;
                 case SYNC_CHILDREN:
                     if ((buffer = malloc(recvd_req.data_size)) == NULL) {
@@ -306,57 +291,33 @@ void *remote_client_handler(void *fd){
                          * data that was previously in the requested region through a different
                          * request that doesn't require buffer memory to be allocated.
                          */
-                        // send malloc failure message
-                        // client won't reply with the data if it reads this error
-                        malloc_status = -1;
-                        write(client_fd, &malloc_status, sizeof(malloc_status));
 
-                        // attempt to undo synchronization
                         // SYNC_CHILDREN will always be received by children, i.e. servers in CONNECTED mode
-                        request desync_req = {DESYNC_PARENT, recvd_req.region, clipboard[recvd_req.region].data_size};
-                        write(connected_fd, &desync_req, sizeof(desync_req));
-                        // send original data
-                        write(connected_fd, &clipboard[recvd_req.region].data, clipboard[recvd_req.region].data_size);
+                        send_desync_parent(recvd_req.region);
                     } else {
-                        bytes = read(client_fd, buffer, recvd_req.data_size);
-
-                // send_SYNC
-
-                        /*// lock for writing
-                        pthread_rwlock_wrlock(&clipboard[recvd_req.region].rwlock);
-
-                        // free older data in region, if there is any
-                        if (clipboard[recvd_req.region].data != NULL) free(clipboard[recvd_req.region].data);
-
-                        // store new data
-                        clipboard[recvd_req.region].data = buffer;
-                        clipboard[recvd_req.region].data_size = bytes;
-
-                        // unlock
-                        pthread_rwlock_unlock(&clipboard[recvd_req.region].rwlock);
-
-                        // broadcast to children
-                        request sync_req = {SYNC_CHILDREN, recvd_req.region, recvd_req.data_size};
-                        for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
-                            write(aux->fd, &sync_req, sizeof(sync_req));
-                            write(aux->fd, &clipboard[recvd_req.region].data, bytes);
-                        }*/
+                        bytes = store_buffered(req.region, bytes, buffer);
+                        send_sync_children(req.region, bytes);
                     }
                     break;
                 case DESYNC_PARENT:
-
+                    if (mode) { // CONNECTED
+                        store_not_buffered(peer_fd, recvd_req.region, recvd_req.data_size);
+                        send_desync_parent(recvd_req.region);
+                    } else {    // SINGLE
+                        store_not_buffered(peer_fd, recvd_req.region, recvd_req.data_size);
+                        send_desync_children(recvd_req.region);
+                    }
                     break;
                 case DESYNC_CHILDREN:
-
+                    store_not_buffered(peer_fd, recvd_req.region, recvd_req.data_size);
+                    send_desync_children(recvd_req.region);
                     break;
                 default:
                     break;
             }
-
-            pthread_mutex_unlock(&sync_lock);
-        } else if (read(client_fd, (void *) &recvd_req, sizeof(recvd_req)) <= 0) { // either something has gone wrong or the connection has closed on the other side
-            close_connection(client_fd, remote_client_list);
-            pthread_exit(NULL);
         }
-    } 
+    } while (read_status > 0);
+
+    pthread_cleanup_pop(1);
+    pthread_exit(NULL);
 }
