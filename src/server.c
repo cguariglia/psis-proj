@@ -22,17 +22,17 @@ void cleanup(int sig){
 
     // each thread closes the associated peer fd and removes itself from its peer list
     // terminate connection with local clients
-    for (client *aux = local_client_list; aux != NULL, aux = aux->next) {
+    for (client *aux = local_client_list; aux != NULL; aux = aux->next) {
         pthread_cancel(aux->thread_id);
     }
 
     // terminate connection with remote clients
-    for (client *aux = remote_client_list; aux != NULL, aux = aux->next) {
+    for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
         pthread_cancel(aux->thread_id);
     }
 
     // terminate connection with parent clipboard
-    pthread_cancel(parent_handler_thread);
+    if (mode) pthread_cancel(parent_handler_thread);
 
     // free resources
     for (int i = 0; i < 10; i++) {
@@ -41,6 +41,7 @@ void cleanup(int sig){
         pthread_cond_destroy(&clipboard[i].cond);
         pthread_mutex_destroy(&clipboard[i].cond_mut);
     }
+
     pthread_mutex_destroy(&sync_lock);
 	unlink("./CLIPBOARD_SOCKET");
 
