@@ -29,10 +29,11 @@ extern cb clipboard[10];
 extern client *local_client_list;
 extern client *remote_client_list;
 extern enum connection_mode {SINGLE, CONNECTED} mode;
+extern int connected_fd;
+extern pthread_t parent_handler_thread, local_accept_thread, remote_accept_thread;
 extern pthread_mutex_t sync_lock;
 extern int local_server_fd;
 extern int tcp_server_fd;
-extern int connected_fd;
 
 /* Free-first realloc
  * Assures that original pointer is freed first,

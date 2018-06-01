@@ -13,15 +13,33 @@
 
 #define ERROR(A) {perror(A); exit(-1);}
 
-void interrupt_f(int signum){
+void cleanup(int sig){
 	printf("Terminating...\n");
+
+    // terminate peer accept threads
+    pthread_cancel(local_accept_thread);
+    pthread_cancel(remote_accept_thread);
+
+    // each thread closes the associated peer fd and removes itself from its peer list
+    // terminate connection with local clients
+    for (client *aux = local_client_list; aux != NULL, aux = aux->next) {
+        pthread_cancel(aux->thread_id);
+    }
+
+    // terminate connection with remote clients
+    for (client *aux = remote_client_list; aux != NULL, aux = aux->next) {
+        pthread_cancel(aux->thread_id);
+    }
+
+    // terminate connection with parent clipboard
+    pthread_cancel(parent_handler_thread);
 
     // free resources
     for (int i = 0; i < 10; i++) {
         if (clipboard[i].data != NULL) free(clipboard[i].data);
-
-        // ainda podem existir locks; melhorar no final e acrescentar tipo variáveis de estado?
         pthread_rwlock_destroy(&clipboard[i].rwlock);
+        pthread_cond_destroy(&clipboard[i].cond);
+        pthread_mutex_destroy(&clipboard[i].cond_mut);
     }
     pthread_mutex_destroy(&sync_lock);
 	unlink("./CLIPBOARD_SOCKET");
@@ -101,7 +119,7 @@ int main(int argc, char **argv){
     // create TCP socket
     struct sockaddr_in tcp_server_addr;
     socklen_t tcp_server_addr_len = sizeof(tcp_server_addr);
-    
+
     // socket creation
     if ((tcp_server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         unlink("./CLIPBOARD_SOCKET");
@@ -166,9 +184,9 @@ int main(int argc, char **argv){
     pthread_sigmask(SIG_BLOCK, &sig_mask, NULL);
 
     // start threads
-    pthread_t local_accept_thread, remote_accept_thread;
     client_type ct = LOCAL;
     pthread_create(&local_accept_thread, NULL, &accept_clients, (void *) &ct);
+    if (mode) pthread_create(&parent_handler_thread, NULL, &remote_peer_handler, (void *) &connected_fd);
     ct = REMOTE;
     pthread_create(&remote_accept_thread, NULL, &accept_clients, (void *) &ct);
 
@@ -176,11 +194,17 @@ int main(int argc, char **argv){
     pthread_sigmask(SIG_UNBLOCK, &sig_mask, NULL);
 
     // handle signals in main thread
-    
-    
-    while(1);
-    
-    
-    
+    signal(SIGINT, cleanup);
+    signal(SIGTERM, cleanup);
+    // SIGKILL and SIGSTOP can't be caught
+
+    printf("Type 'q' to stop.\n");
+    char c;
+    do {
+        c = getchar();
+    } while (c != 'q' && c != 'Q');
+
+    cleanup(0);
+
 	exit(0);
 }

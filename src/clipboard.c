@@ -80,8 +80,8 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     if (expected_bytes <= 0) {printf("\tfailed to paste from reg. %d\n", region); return 0;}
 
     // receive 2nd reply (data)
-    ssize_t bytes_read;
-    if ((bytes_read = read(clipboard_id, buf, expected_bytes)) == -1) return 0;
+    ssize_t bytes_read = read(clipboard_id, buf, expected_bytes);
+    if (bytes_read == -1) return 0;
 
     return (int) bytes_read;
 }
