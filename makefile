@@ -23,7 +23,7 @@ $(APPDIR)/$(LIBDIR)/%.o: $(APPDIR)/$(SRCDIR)/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 help usage:
-	echo "Usage: make [server/lib/app]"
+	echo "Usage: make [server/lib/apps/all]"
 
 lib: $(LIBDIR)/clipboard.o
 
@@ -36,18 +36,14 @@ dirs_apps:
 server: dirs_server lib $(LIBDIR)/server_global.o $(LIBDIR)/sync_protocol.o $(LIBDIR)/server_threads.o $(LIBDIR)/server.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS) $(wordlist 3, 6, $^)
 
-app: dirs_apps lib $(APPDIR)/$(LIBDIR)/app_teste.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/$@
+clipboard_test: dirs_apps lib $(APPDIR)/$(LIBDIR)/clipboard_test.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/clipboard_test
+	
+apps: clipboard_test
+
+all: server apps
 
 .PHONY: clean
 
 clean:
 	rm -rf $(LIBDIR) $(BINDIR) $(APPDIR)/$(BINDIR) $(APPDIR)/$(LIBDIR)
-
-
-inet: inet_server_test.c inet_client_test.c
-	gcc -Wall -Wextra -pedantic -o server inet_server_test.c
-	gcc -Wall -Wextra -pedantic -o client inet_client_test.c
-
-cleaninet:
-	rm server client

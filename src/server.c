@@ -24,7 +24,7 @@ void interrupt_f(int signum){
         pthread_rwlock_destroy(&clipboard[i].rwlock);
     }
     pthread_mutex_destroy(&sync_lock);
-	unlink(SERVER_ADDRESS);
+	unlink("./CLIPBOARD_SOCKET");
 
 	exit(0);
 }
@@ -84,17 +84,17 @@ int main(int argc, char **argv){
 
     // address definition
     local_server_addr.sun_family = AF_UNIX;
-    strcpy(local_server_addr.sun_path, SERVER_ADDRESS);
+    strcpy(local_server_addr.sun_path, "./CLIPBOARD_SOCKET");
 
     // binding
     if (bind(local_server_fd, (struct sockaddr *) &local_server_addr, sizeof(local_server_addr)) == -1) {
-        unlink(SERVER_ADDRESS);
+        unlink("./CLIPBOARD_SOCKET");
         ERROR("[UNIX] Socket address binding error");
     }
 
     // setup listen
     if (listen(local_server_fd, SERVER_BACKLOG) == -1) {
-        unlink(SERVER_ADDRESS);
+        unlink("./CLIPBOARD_SOCKET");
         ERROR("[UNIX] Listen setup error");
     }
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv){
     
     // socket creation
     if ((tcp_server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        unlink(SERVER_ADDRESS);
+        unlink("./CLIPBOARD_SOCKET");
         ERROR("[TCP] Socket creation error");
     }
 
@@ -115,21 +115,21 @@ int main(int argc, char **argv){
 
     // binding
     if (bind(tcp_server_fd, (struct sockaddr *) &tcp_server_addr, tcp_server_addr_len) == -1) {
-        unlink(SERVER_ADDRESS);
+        unlink("./CLIPBOARD_SOCKET");
         close(tcp_server_fd);
         ERROR("[TCP] Socket address binding error");
     }
 
     // setup listen
     if (listen(tcp_server_fd, SERVER_BACKLOG) == -1) {
-        unlink(SERVER_ADDRESS);
+        unlink("./CLIPBOARD_SOCKET");
         close(tcp_server_fd);
         ERROR("[TCP] Listen setup error");
     }
 
     // print used port
     if (getsockname(tcp_server_fd, (struct sockaddr *) &tcp_server_addr, &tcp_server_addr_len) != 0) {
-        unlink(SERVER_ADDRESS);
+        unlink("./CLIPBOARD_SOCKET");
         close(tcp_server_fd);
         ERROR("[TCP] Unable to retrieve socket port");
     }
@@ -176,6 +176,11 @@ int main(int argc, char **argv){
     pthread_sigmask(SIG_UNBLOCK, &sig_mask, NULL);
 
     // handle signals in main thread
-
+    
+    
+    while(1);
+    
+    
+    
 	exit(0);
 }

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#define SERVER_ADDRESS "./CLIPBOARD_SOCKET"
+#define SERVER_ADDRESS "../../bin/CLIPBOARD_SOCKET"
 #define SERVER_BACKLOG 10
 
 /*

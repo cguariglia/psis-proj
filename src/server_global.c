@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <server_global.h>
 
 cb clipboard[10];
