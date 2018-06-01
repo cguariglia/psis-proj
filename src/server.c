@@ -93,8 +93,6 @@ int main(int argc, char **argv){
         clipboard[i].cond_mut = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
     }
 
-    //signal(SIGINT, interrupt_f);
-
     // create local socket
     struct sockaddr_un local_server_addr;
 

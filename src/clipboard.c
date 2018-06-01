@@ -46,7 +46,8 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
     // send request
     if (write(clipboard_id, (void *) &c_msg, sizeof(c_msg)) != sizeof(c_msg)) return 0;
 
-// add server malloc check read
+    int8_t malloc_status = -1;
+    if (read(clipboard_id, &malloc_status, sizeof(malloc_status)) != sizeof(malloc_status) || malloc_status == -1) return 0;
 
     // send data
     /* verifying this write is pointless as it will not cause errors server-side

@@ -8,16 +8,16 @@
 
 #include <clipboard.h>
 
-int main(int argc, char *argv[]){
+int main(){
     char str[100];
 
     int clip = clipboard_connect(SERVER_ADDRESS);
-    
+
     for (int i = 0; i < 10; i++) {
-        clipboard_copy(clip, i, buf, sizeof(buf));
-        printf("Region %d -- %s\n", i, buf)
+        clipboard_paste(clip, i, str, sizeof(str));
+        printf("Region %d -- %s\n", i, str);
     }
-    
+
     clipboard_close(clip);
 
     exit(0);
