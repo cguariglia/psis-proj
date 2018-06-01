@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <unistd.h>
 #include <server_global.h>
 
 void send_ask_parent(int region, size_t data_size, void *buffer){
@@ -38,7 +40,7 @@ int recv_sync_children(int region, size_t data_size, void *buffer){
     return data_size;
 }
 
-void send_sync_children(int region, size_t data_size, void *buffer){
+void send_sync_children(int region, size_t data_size){
     // broadcast to children
     request req = {SYNC_CHILDREN, region, data_size};
     for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
@@ -81,7 +83,7 @@ void recv_desync_children(int region, size_t data_size){
 void send_desync_children(int region){
     request req = {DESYNC_CHILDREN, region, clipboard[region].data_size};
 
-    for (client *aux = remote_client_list; aux != NULL, aux = aux->next) {
+    for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
         write(aux->fd, (void *) &req, sizeof(req));
         write(aux->fd, clipboard[region].data, clipboard[region].data_size);
     }

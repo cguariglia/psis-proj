@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <pthread.h>
 
+#include <server_threads.h>
 #include <server_global.h>
 #include <sync_protocol.h>
 
@@ -57,6 +58,23 @@ void *accept_clients(void *type){
     }
 
     pthread_exit(NULL);
+}
+
+void close_connection(int client_fd, client *client_list) {
+    // find the client, remove it from the list and store it in aux
+    client *aux = client_list;
+    
+    if (client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
+        client_list = client_list->next;
+        free(aux);
+    } else {    // client is in the middle or the end of the list
+        while (aux->next->fd != client_fd) aux = aux->next;
+        client *aux_free = aux->next;
+        aux->next = aux->next->next;
+        free(aux_free);
+    }
+    
+    close(client_fd);
 }
 
 void *local_client_handler(void *fd){
@@ -144,7 +162,7 @@ void *local_client_handler(void *fd){
 
                                             bytes = recv_sync_children(req.region, bytes, buffer);
 
-                                            send_sync_children(req.region, bytes, buffer);
+                                            send_sync_children(req.region, bytes);
 
                                             break;
                                         default:
@@ -206,18 +224,7 @@ void *local_client_handler(void *fd){
                     break;
                 case CLOSE:
                 {
-                    // find the client, remove it from the list and store it in aux
-                    client *aux = local_client_list;
-                    if (local_client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
-                        local_client_list = local_client_list->next;
-                        free(aux);
-                    } else {                                    // client is in the middle or the end of the list
-                        while (aux->next->fd != client_fd) aux = aux->next;
-                        client *aux_free = aux->next;
-                        aux->next = aux->next->next;
-                        free(aux_free);
-                    }
-                    close(client_fd);
+                    close_connection(client_fd, local_client_list);
                     pthread_exit(NULL);
                     break;
                 }
@@ -347,6 +354,9 @@ void *remote_client_handler(void *fd){
             }
 
             pthread_mutex_unlock(&sync_lock);
+        } else if (read(client_fd, (void *) &recvd_req, sizeof(recvd_req)) <= 0) { // either something has gone wrong or the connection has closed on the other side
+            close_connection(client_fd, remote_client_list);
+            pthread_exit(NULL);
         }
-    }
+    } 
 }

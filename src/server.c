@@ -98,7 +98,6 @@ int main(int argc, char **argv){
         ERROR("[UNIX] Listen setup error");
     }
 
-
     // create TCP socket
     struct sockaddr_in tcp_server_addr;
     socklen_t tcp_server_addr_len = sizeof(tcp_server_addr);
