@@ -57,6 +57,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
     // receive reply (bytes written)
     ssize_t bytes_written;
     if (read(clipboard_id, (void *) &bytes_written, sizeof(bytes_written)) != sizeof(bytes_written)) return 0;
+
     if (bytes_written == -1) return 0;
 
     return (int) bytes_written;
@@ -80,9 +81,16 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     if (read(clipboard_id, (void *) &expected_bytes, sizeof(expected_bytes)) != sizeof(expected_bytes)) return 0;
     if (expected_bytes <= 0) {printf("\tfailed to paste from reg. %d\n", region); return 0;}
 
+printf("%p\t%d\n", buf, expected_bytes);
+
     // receive 2nd reply (data)
     ssize_t bytes_read = read(clipboard_id, buf, expected_bytes);
-    if (bytes_read == -1) return 0;
+
+printf("qwerty\n");
+
+    if (bytes_read == -1) {perror(NULL); return 0;}
+
+printf("asdf\n");
 
     return (int) bytes_read;
 }

@@ -17,21 +17,21 @@ int main(){
     char str[100];
 
     int clip = clipboard_connect(SERVER_ADDRESS);
-    
+
     printf("Copying \"%s\" to clipboard region %d\n", data1, region1);
-    clipboard_copy(clip, region1, (void *) data1, sizeof(data1));
+    printf("Copied %d bytes\n", clipboard_copy(clip, region1, (void *) data1, sizeof(data1)));
 
     printf("Copying \"%s\" to clipboard region %d\n", data2, region2);
-    clipboard_copy(clip, region2, (void *) data2, sizeof(data2));
+    printf("Copied %d bytes\n", clipboard_copy(clip, region2, (void *) data2, sizeof(data2)));
 
     printf("Copying \"%s\" to clipboard region %d\n", data3, region2);
-    clipboard_copy(clip, region2, (void *) data3, sizeof(data3));
-    
+    printf("Copied %d bytes\n", clipboard_copy(clip, region2, (void *) data3, sizeof(data3)));
+
     printf("Pasting data from clipboard region %d\n", region2);
-    clipboard_paste(clip, region2, (void *) str, sizeof(data3));
-    
-    printf("Pasting data3 from clipboard region %d\n", 3);
-    clipboard_paste(clip, 3, (void *) str, sizeof(data3));
+    printf("Pasted %d bytes: %s\n", clipboard_paste(clip, region2, (void *) str, sizeof(data3)), str);
+
+    printf("Pasting data1 from clipboard region %d\n", region1);
+    printf("Pasted %d bytes: %s\n", clipboard_paste(clip, region1, (void *) str, sizeof(data1)), str);
 
     clipboard_close(clip);
 

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <server_global.h>
@@ -37,6 +38,8 @@ int store_buffered(int fd, int region, size_t data_size, void *buffer){
     if (fd == connected_fd) pthread_mutex_lock(&sync_lock);
     size_t bytes = read(fd, buffer, data_size);
     if (fd == connected_fd) pthread_mutex_unlock(&sync_lock);
+
+printf("store_buffered bytes = %d\n", bytes);
 
     // lock for writing
     pthread_rwlock_wrlock(&clipboard[region].rwlock);

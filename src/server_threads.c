@@ -9,13 +9,6 @@
 #include <server_global.h>
 #include <sync_protocol.h>
 
-// argument structure for the
-// close_connection cleanup function
-typedef struct arg_struct {
-    int fd;
-    client *list;
-} arg_struct;
-
 /* add a client to the list of connections
  * and place it at the end of the list
  *
@@ -34,6 +27,9 @@ int add_client(int client_fd, client_type type){
     new_client->fd = client_fd;
     new_client->next = NULL;
 
+    if ((type ? remote_client_list : local_client_list) == NULL)
+        type ? (remote_client_list = new_client) : (local_client_list = new_client);
+
     // setup a thread to manage communication with the new client
     if (pthread_create(&new_client->thread_id, NULL, type ? &remote_peer_handler : &local_client_handler, (void *) &client_fd) != 0) {
         free(new_client);
@@ -50,7 +46,7 @@ void *accept_clients(void *type){
     char *type_str[] = {"UNIX", "TCP"};
     client_type ct = *(client_type *)type;
 
-    if (ct != LOCAL || ct != REMOTE) pthread_exit(NULL);
+    if (ct != LOCAL && ct != REMOTE) pthread_exit(NULL);
 
     while(1) {
         // accept pending client connection requests
@@ -71,15 +67,38 @@ void *accept_clients(void *type){
     pthread_exit(NULL);
 }
 
-void close_connection(void *args) {
-    int client_fd = ((arg_struct *) args)->fd;
-    client *client_list = ((arg_struct *) args)->list;
+void close_local_connection(void *arg) {
+    int client_fd = *(int *) arg;
 
     // find the client, remove it from the list and store it in aux
-    client *aux = client_list;
+    client *aux = local_client_list;
 
-    if (client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
-        client_list = client_list->next;
+    if (local_client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
+        local_client_list = local_client_list->next;
+        free(aux);
+    } else {    // client is in the middle or the end of the list
+        while (aux->next->next != NULL && aux->next->next->fd != client_fd) aux = aux->next;
+        if (aux->next->fd == client_fd) {   // client is last on the list
+            free(aux->next);
+            aux->next = NULL;
+        } else {
+            client *aux_free = aux->next;
+            aux->next = aux->next->next;
+            free(aux_free);
+        }
+    }
+
+    close(client_fd);
+}
+
+void close_remote_connection(void *arg) {
+    int client_fd = *(int *) arg;
+
+    // find the client, remove it from the list and store it in aux
+    client *aux = remote_client_list;
+
+    if (remote_client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
+        remote_client_list = remote_client_list->next;
         free(aux);
     } else {    // client is in the middle or the end of the list
         while (aux->next->fd != client_fd) aux = aux->next;
@@ -99,8 +118,7 @@ void *local_client_handler(void *fd){
 
     printf("[DEBUG] accepted client with fd %d\n", client_fd);
 
-    arg_struct args = {client_fd, local_client_list};
-    pthread_cleanup_push(close_connection, &args);
+    pthread_cleanup_push(close_local_connection, fd);
 
     do {
         read_status = read(client_fd, (void *) &req, sizeof(req));
@@ -183,7 +201,7 @@ void *local_client_handler(void *fd){
                                 } while (req.region != region);
                             }
                         } else {    // SINGLE mode
-                            bytes = store_buffered(client_fd, req.region, bytes, buffer);
+                            bytes = store_buffered(client_fd, req.region, req.data_size, buffer);
                             send_sync_children(req.region, bytes);
                         }
 
@@ -213,6 +231,8 @@ void *local_client_handler(void *fd){
 
                     // use stored data size if it is lower than the requested data size
                     bytes = (clipboard[req.region].data_size < req.data_size) ? clipboard[req.region].data_size : req.data_size;
+
+                    write(client_fd, (void *) &bytes, sizeof(bytes));
 
                     // lock for reading
                     pthread_rwlock_rdlock(&clipboard[req.region].rwlock);
@@ -251,10 +271,9 @@ void *remote_peer_handler(void *fd){
     void *buffer = NULL;
     int8_t malloc_status;  // 0 = success, -1 = error
 
-    void (*cleanup_routine)(void *) = (peer_fd == connected_fd) ? disconnect_parent : close_connection;
-    arg_struct args = {peer_fd, remote_client_list};
+    void (*cleanup_routine)(void *) = (peer_fd == connected_fd) ? disconnect_parent : close_remote_connection;
 
-    pthread_cleanup_push(cleanup_routine, (peer_fd == connected_fd) ? NULL : &args);
+    pthread_cleanup_push(cleanup_routine, (peer_fd == connected_fd) ? NULL : fd);
 
     do {
         read_status = read(peer_fd, (void *) &recvd_req, sizeof(recvd_req));
