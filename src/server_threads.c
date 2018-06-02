@@ -6,8 +6,83 @@
 #include <pthread.h>
 
 #include <server_threads.h>
-#include <server_global.h>
 #include <sync_protocol.h>
+
+void close_local_connection(void *fd) {
+    // only run if the list isn't empty (shouldn't ever happen)
+    if (local_client_list == NULL) return;
+
+    int client_fd = *(int *) fd;
+
+printf("\nfd = %d\n\n", client_fd);
+
+    // find the client, remove it from the list and store it in aux
+    client *aux = local_client_list;
+
+    // client is first on the list
+    if (local_client_list->fd == client_fd) {
+        local_client_list = local_client_list->next;
+        free(aux);
+    } else {
+        aux = local_client_list->next;          // second element in the list
+        client *prev_aux = local_client_list;    // element before aux
+
+printf("\nNot the first element\n\naux->fd = %d\naux->next == NULL? %s\n\n", aux->fd, (aux->next==NULL)?"yes":"no"); int i=0;
+
+        // find the client's element
+        while (aux->fd != client_fd && aux->next != NULL) { // client_fd will always exist in the list
+printf("\ni=%d\naux->fd = %d\naux->next == NULL? %s\n\n", i++, aux->fd, (aux->next==NULL)?"yes":"no");
+            prev_aux = aux;
+            aux = aux->next;
+        }
+
+        // reconnect the list and remove the element
+        prev_aux->next = aux->next;
+        free(aux);
+
+        /*// client is last on the list
+        if (aux->next == NULL) {
+            prev_aux->next = NULL;
+            free(aux);
+        } else {    // client is in the middle of the list
+            prev_aux->next = aux->next;
+            free(aux);
+        }*/
+    }
+
+    close(client_fd);
+}
+
+void close_remote_connection(void *fd) {
+    // only run if the list isn't empty (shouldn't ever happen)
+    if (remote_client_list == NULL) return;
+
+    int client_fd = *(int *) fd;
+
+    // find the client, remove it from the list and store it in aux
+    client *aux = remote_client_list;
+
+    // client is first on the list
+    if (remote_client_list->fd == client_fd) {
+        remote_client_list = remote_client_list->next;
+        free(aux);
+    } else {
+        aux = remote_client_list->next;         // second element in the list
+        client *prev_aux = remote_client_list;  // element before aux
+
+        // find the client's element
+        while (aux->fd != client_fd && aux->next != NULL) { // client_fd will always exist in the list
+            prev_aux = aux;
+            aux = aux->next;
+        }
+
+        // reconnect the list and remove the element
+        prev_aux->next = aux->next;
+        free(aux);
+    }
+
+    close(client_fd);
+}
 
 /* add a client to the list of connections
  * and place it at the end of the list
@@ -15,25 +90,28 @@
  * returns 0 on success or -1 on error
  */
 int add_client(int client_fd, client_type type){
-    // find the last client on the list
-    client *new_client = type ? remote_client_list : local_client_list;
-    while (new_client != NULL) new_client = new_client->next;
-
     // allocate and initialize
-    if ((new_client = malloc(sizeof(client))) == NULL) {
+    client *new_client = malloc(sizeof(client));
+    if (new_client == NULL) {
         close(client_fd);
         return -1;
     }
     new_client->fd = client_fd;
     new_client->next = NULL;
 
-    if ((type ? remote_client_list : local_client_list) == NULL)
+    // list is empty before adding the new client
+    if ((type ? remote_client_list : local_client_list) == NULL) {
         type ? (remote_client_list = new_client) : (local_client_list = new_client);
+    } else {
+        // find the last client on the list
+        client *aux = type ? remote_client_list : local_client_list;
+        while (aux->next != NULL) aux = aux->next;
+        aux->next = new_client;
+    }
 
     // setup a thread to manage communication with the new client
     if (pthread_create(&new_client->thread_id, NULL, type ? &remote_peer_handler : &local_client_handler, (void *) &client_fd) != 0) {
-        free(new_client);
-        close(client_fd);
+        type ? close_remote_connection((void *) &client_fd) : close_local_connection((void *) &client_fd);
         return -1;
     }
 
@@ -65,49 +143,6 @@ void *accept_clients(void *type){
     }
 
     pthread_exit(NULL);
-}
-
-void close_local_connection(void *arg) {
-    int client_fd = *(int *) arg;
-
-    // find the client, remove it from the list and store it in aux
-    client *aux = local_client_list;
-
-    if (local_client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
-        local_client_list = local_client_list->next;
-        free(aux);
-    } else {    // client is in the middle or the end of the list
-        while (aux->next->next != NULL && aux->next->next->fd != client_fd) aux = aux->next;
-        if (aux->next->fd == client_fd) {   // client is last on the list
-            free(aux->next);
-            aux->next = NULL;
-        } else {
-            client *aux_free = aux->next;
-            aux->next = aux->next->next;
-            free(aux_free);
-        }
-    }
-
-    close(client_fd);
-}
-
-void close_remote_connection(void *arg) {
-    int client_fd = *(int *) arg;
-
-    // find the client, remove it from the list and store it in aux
-    client *aux = remote_client_list;
-
-    if (remote_client_list->fd == client_fd) {   // client is 1st on the list (already stored in aux)
-        remote_client_list = remote_client_list->next;
-        free(aux);
-    } else {    // client is in the middle or the end of the list
-        while (aux->next->fd != client_fd) aux = aux->next;
-        client *aux_free = aux->next;
-        aux->next = aux->next->next;
-        free(aux_free);
-    }
-
-    close(client_fd);
 }
 
 void *local_client_handler(void *fd){

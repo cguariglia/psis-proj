@@ -38,13 +38,13 @@ server: dirs_server lib $(LIBDIR)/server_global.o $(LIBDIR)/sync_protocol.o $(LI
 
 clipboard_test: dirs_apps lib $(APPDIR)/$(LIBDIR)/clipboard_test.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/clipboard_test
-	
+
 wait_test: dirs_apps lib $(APPDIR)/$(LIBDIR)/wait_test.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/wait_test
-	
+
 print_clipboard: dirs_apps lib $(APPDIR)/$(LIBDIR)/print_clipboard.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/print_clipboard
-	
+
 apps: clipboard_test wait_test print_clipboard
 
 all: server apps
