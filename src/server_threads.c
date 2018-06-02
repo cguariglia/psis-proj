@@ -14,7 +14,9 @@ void close_local_connection(void *fd) {
 
     int client_fd = *(int *) fd;
 
-printf("\nfd = %d\n\n", client_fd);
+printf("current client list:");
+for (client *aux = local_client_list; aux->next != NULL; aux = aux->next) printf(" %d",aux->fd);
+printf("\n- closing connection from client with fd = %d\n\n", client_fd);
 
     // find the client, remove it from the list and store it in aux
     client *aux = local_client_list;
@@ -114,6 +116,8 @@ int add_client(int client_fd, client_type type){
         type ? close_remote_connection((void *) &client_fd) : close_local_connection((void *) &client_fd);
         return -1;
     }
+
+printf("added client with fd = %d\n", new_client->fd);
 
     return 0;
 }

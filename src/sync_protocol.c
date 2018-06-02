@@ -50,7 +50,12 @@ printf("store_buffered bytes = %d\n", bytes);
     // store new data
     clipboard[region].data = buffer;
     clipboard[region].data_size = bytes;
+
+    // signal waiting clients
+    pthread_mutex_lock(&clipboard[region].cond_mut);
     clipboard[region].waiting = 0;
+    pthread_cond_broadcast(&clipboard[region].cond);
+    pthread_mutex_unlock(&clipboard[region].cond_mut);
 
     // unlock
     pthread_rwlock_unlock(&clipboard[region].rwlock);
@@ -97,7 +102,11 @@ void store_not_buffered(int fd, int region, size_t data_size){
     clipboard[region].data_size = read(fd, &clipboard[region].data, data_size);
     if (fd == connected_fd) pthread_mutex_unlock(&sync_lock);
 
+    // signal waiting clients
+    pthread_mutex_lock(&clipboard[region].cond_mut);
     clipboard[region].waiting = 0;
+    pthread_cond_broadcast(&clipboard[region].cond);
+    pthread_mutex_unlock(&clipboard[region].cond_mut);
 
     // unlock
     pthread_rwlock_unlock(&clipboard[region].rwlock);

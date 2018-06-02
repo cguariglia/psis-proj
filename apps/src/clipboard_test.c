@@ -26,12 +26,14 @@ int main(){
 
     printf("Copying \"%s\" to clipboard region %d\n", data3, region2);
     printf("Copied %d bytes\n", clipboard_copy(clip, region2, (void *) data3, sizeof(data3)));
-
+getchar();
     printf("Pasting data from clipboard region %d\n", region2);
     printf("Pasted %d bytes: %s\n", clipboard_paste(clip, region2, (void *) str, sizeof(data3)), str);
-
+getchar();
     printf("Pasting data1 from clipboard region %d\n", region1);
     printf("Pasted %d bytes: %s\n", clipboard_paste(clip, region1, (void *) str, sizeof(data1)), str);
+
+    getchar();
 
     clipboard_close(clip);
 
