@@ -14,9 +14,9 @@ void close_local_connection(void *fd) {
 
     int client_fd = *(int *) fd;
 
-printf("current client list:");
-for (client *aux = local_client_list; aux->next != NULL; aux = aux->next) printf(" %d",aux->fd);
-printf("\n- closing connection from client with fd = %d\n\n", client_fd);
+printf("current client list:"); client *auxi;
+for (auxi = local_client_list; auxi->next != NULL; auxi = auxi->next) printf(" %d",auxi->fd);
+printf(" %d\n- closing connection from client with fd = %d\tvoid *fd == %d\n\n", auxi->fd, client_fd, *(int *) fd);
 
     // find the client, remove it from the list and store it in aux
     client *aux = local_client_list;
@@ -29,11 +29,12 @@ printf("\n- closing connection from client with fd = %d\n\n", client_fd);
         aux = local_client_list->next;          // second element in the list
         client *prev_aux = local_client_list;    // element before aux
 
-printf("\nNot the first element\n\naux->fd = %d\naux->next == NULL? %s\n\n", aux->fd, (aux->next==NULL)?"yes":"no"); int i=0;
+//printf("\nNot the first element\n\naux->fd = %d\naux->next == NULL? %s\n\n", aux->fd, (aux->next==NULL)?"\t=== YES ===\t":"no");
+int i=0;
 
         // find the client's element
         while (aux->fd != client_fd && aux->next != NULL) { // client_fd will always exist in the list
-printf("\ni=%d\naux->fd = %d\naux->next == NULL? %s\n\n", i++, aux->fd, (aux->next==NULL)?"yes":"no");
+printf("\n# iterations: i=%d\naux->fd = %d\naux->next == NULL? %s\n\n", ++i, aux->fd, (aux->next==NULL)?"yes":"no");
             prev_aux = aux;
             aux = aux->next;
         }
@@ -111,13 +112,17 @@ int add_client(int client_fd, client_type type){
         aux->next = new_client;
     }
 
+printf("add_client client_fd == %d!\n", client_fd);
+
     // setup a thread to manage communication with the new client
     if (pthread_create(&new_client->thread_id, NULL, type ? &remote_peer_handler : &local_client_handler, (void *) &client_fd) != 0) {
         type ? close_remote_connection((void *) &client_fd) : close_local_connection((void *) &client_fd);
         return -1;
     }
 
-printf("added client with fd = %d\n", new_client->fd);
+printf("added client with fd = %d\ncurrent client list:\t", new_client->fd);
+for (client *aux = local_client_list; aux != NULL; aux = aux->next) printf("%d-", aux->fd);
+putchar('\n');
 
     return 0;
 }
@@ -157,7 +162,9 @@ void *local_client_handler(void *fd){
 
     printf("[DEBUG] accepted client with fd %d\n", client_fd);
 
-    pthread_cleanup_push(close_local_connection, fd);
+    printf("void *fd type casted = %d\n", *(int *)fd);
+
+    pthread_cleanup_push(close_local_connection, (void *) &client_fd);
 
     do {
         read_status = read(client_fd, (void *) &req, sizeof(req));

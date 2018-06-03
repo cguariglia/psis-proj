@@ -33,8 +33,6 @@ getchar();
     printf("Pasting data1 from clipboard region %d\n", region1);
     printf("Pasted %d bytes: %s\n", clipboard_paste(clip, region1, (void *) str, sizeof(data1)), str);
 
-    getchar();
-
     clipboard_close(clip);
 
     exit(0);
