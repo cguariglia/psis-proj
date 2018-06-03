@@ -94,6 +94,9 @@ void close_remote_connection(void *fd) {
  */
 int add_client(int client_fd, client_type type){
     // allocate and initialize
+    int *new_fd = malloc(sizeof(int)); // so the stack won't eat this before it gets used
+    memcpy(new_fd, &client_fd, sizeof(int));
+    
     client *new_client = malloc(sizeof(client));
     if (new_client == NULL) {
         close(client_fd);
@@ -115,8 +118,8 @@ int add_client(int client_fd, client_type type){
 printf("add_client client_fd == %d!\n", client_fd);
 
     // setup a thread to manage communication with the new client
-    if (pthread_create(&new_client->thread_id, NULL, type ? &remote_peer_handler : &local_client_handler, (void *) &client_fd) != 0) {
-        type ? close_remote_connection((void *) &client_fd) : close_local_connection((void *) &client_fd);
+    if (pthread_create(&new_client->thread_id, NULL, type ? &remote_peer_handler : &local_client_handler, (void *) new_fd) != 0) {
+        type ? close_remote_connection((void *) &client_fd) : close_local_connection((void *) new_fd);
         return -1;
     }
 
@@ -135,6 +138,8 @@ void *accept_clients(void *type){
 
     if (ct != LOCAL && ct != REMOTE) pthread_exit(NULL);
 
+    printf("accepting\n");
+
     while(1) {
         // accept pending client connection requests
         if ((client_fd = accept(ct ? tcp_server_fd : local_server_fd, NULL, NULL)) == -1) {
@@ -143,6 +148,7 @@ void *accept_clients(void *type){
             perror(NULL);
         } else {
             // add connected client to list
+            printf("who?\n");
             if (add_client(client_fd, ct) == -1) {
                 printf("[%s] Unable to add client: ", type_str[ct]);
                 fflush(stdout); // previous printf doesn't end with '\n' so it may not be printed
@@ -161,11 +167,9 @@ void *local_client_handler(void *fd){
     ssize_t read_status;
 
     printf("[DEBUG] accepted client with fd %d\n", client_fd);
-
-    printf("void *fd type casted = %d\n", *(int *)fd);
-
+    
     pthread_cleanup_push(close_local_connection, (void *) &client_fd);
-
+    
     do {
         read_status = read(client_fd, (void *) &req, sizeof(req));
         if (read_status == sizeof(req)) {
@@ -274,7 +278,7 @@ void *local_client_handler(void *fd){
                         write(client_fd, (void *) &bytes, sizeof(bytes));
                         break;
                     }
-
+                                        
                     // use stored data size if it is lower than the requested data size
                     bytes = (clipboard[req.region].data_size < req.data_size) ? clipboard[req.region].data_size : req.data_size;
 
@@ -319,7 +323,7 @@ void *remote_peer_handler(void *fd){
 
     void (*cleanup_routine)(void *) = (peer_fd == connected_fd) ? disconnect_parent : close_remote_connection;
 
-    pthread_cleanup_push(cleanup_routine, (peer_fd == connected_fd) ? NULL : fd);
+    pthread_cleanup_push(cleanup_routine, (peer_fd == connected_fd) ? NULL : (void *) &peer_fd);
 
     do {
         read_status = read(peer_fd, (void *) &recvd_req, sizeof(recvd_req));

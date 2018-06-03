@@ -11,7 +11,7 @@
 #include <clipboard.h>
 #include <server_request.h>
 
-int clipboard_connect(char * clipboard_dir){
+int clipboard_connect(char *clipboard_dir){
 	struct sockaddr_un server_addr;
     int client_fd;
 
@@ -21,9 +21,15 @@ int clipboard_connect(char * clipboard_dir){
         perror("Client socket creation error");
         return(-1);
     }
+    
+    // intended directory + macro that defines socket name
+    char temp[sizeof(server_addr.sun_path)];
+    strcpy(temp, clipboard_dir);
+    strcat(temp, "/CLIPBOARD_SOCKET");
+    
     // server address
     server_addr.sun_family = AF_UNIX;
-    strcpy(server_addr.sun_path, clipboard_dir);
+    strcpy(server_addr.sun_path, temp);
     // connect to server
     if (connect(client_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1) {
         perror("Client socket connection error");
@@ -79,18 +85,12 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
     // receive 1st reply (data size)
     ssize_t expected_bytes;
     if (read(clipboard_id, (void *) &expected_bytes, sizeof(expected_bytes)) != sizeof(expected_bytes)) return 0;
-    if (expected_bytes <= 0) {printf("\tfailed to paste from reg. %d\n", region); return 0;}
-
-printf("%p\t%d\n", buf, expected_bytes);
+    if (expected_bytes <= 0) return 0;
 
     // receive 2nd reply (data)
     ssize_t bytes_read = read(clipboard_id, buf, expected_bytes);
 
-printf("qwerty\n");
-
     if (bytes_read == -1) {perror(NULL); return 0;}
-
-printf("asdf\n");
 
     return (int) bytes_read;
 }
@@ -111,7 +111,7 @@ int clipboard_wait(int clipboard_id, int region, void *buf, size_t count) {
     // receive 1st reply (data size)
     ssize_t expected_bytes;
     if (read(clipboard_id, (void *) &expected_bytes, sizeof(expected_bytes)) != sizeof(expected_bytes)) return 0;
-    if (expected_bytes <= 0) {printf("\tfailed to paste from reg. %d\n", region); return 0;}
+    if (expected_bytes <= 0) {printf("\tFailed to paste from reg. %d\n", region); return 0;}
 
     // receive 2nd reply (data)
     ssize_t bytes_read;

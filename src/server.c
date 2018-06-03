@@ -186,8 +186,8 @@ int main(int argc, char **argv){
     client_type ct = LOCAL;
     pthread_create(&local_accept_thread, NULL, &accept_clients, (void *) &ct);
     if (mode) pthread_create(&parent_handler_thread, NULL, &remote_peer_handler, (void *) &connected_fd);
-    ct = REMOTE;
-    pthread_create(&remote_accept_thread, NULL, &accept_clients, (void *) &ct);
+    client_type rt = REMOTE;
+    pthread_create(&remote_accept_thread, NULL, &accept_clients, (void *) &rt);
 
     // unblock signals
     pthread_sigmask(SIG_UNBLOCK, &sig_mask, NULL);

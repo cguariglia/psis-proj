@@ -36,16 +36,16 @@ dirs_apps:
 server: dirs_server lib $(LIBDIR)/server_global.o $(LIBDIR)/sync_protocol.o $(LIBDIR)/server_threads.o $(LIBDIR)/server.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $(BINDIR)/$@ $(LDLIBS) $(wordlist 3, 6, $^)
 
-clipboard_test: dirs_apps lib $(APPDIR)/$(LIBDIR)/clipboard_test.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/clipboard_test
+copy: dirs_apps lib $(APPDIR)/$(LIBDIR)/copy.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/copy
 
-wait_test: dirs_apps lib $(APPDIR)/$(LIBDIR)/wait_test.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/wait_test
+paste: dirs_apps lib $(APPDIR)/$(LIBDIR)/paste.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/paste
 
 print_clipboard: dirs_apps lib $(APPDIR)/$(LIBDIR)/print_clipboard.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/print_clipboard
 
-apps: clipboard_test wait_test print_clipboard
+apps: copy paste print_clipboard
 
 all: server apps
 
