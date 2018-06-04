@@ -10,7 +10,7 @@
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        printf("./paste region");
+        printf("./wait region");
         exit(1);
     }
     
@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 
     int clip = clipboard_connect("../../bin");
 
-    printf("Pasted %s from region %d (%d bytes)\n", string, region, clipboard_copy(clip, region, string, strlen(string) + 1));
+    printf("Waited to paste %s from region %d (%d bytes)\n", string, region, clipboard_copy(clip, region, string, strlen(string) + 1));
 
     clipboard_close(clip);
 

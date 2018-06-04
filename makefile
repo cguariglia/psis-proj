@@ -41,6 +41,9 @@ copy: dirs_apps lib $(APPDIR)/$(LIBDIR)/copy.o
 
 paste: dirs_apps lib $(APPDIR)/$(LIBDIR)/paste.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/paste
+	
+wait: dirs_apps lib $(APPDIR)/$(LIBDIR)/wait.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/wait
 
 print_clipboard: dirs_apps lib $(APPDIR)/$(LIBDIR)/print_clipboard.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/print_clipboard
