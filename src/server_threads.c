@@ -42,15 +42,6 @@ printf("\n# iterations: i=%d\naux->fd = %d\naux->next == NULL? %s\n\n", ++i, aux
         // reconnect the list and remove the element
         prev_aux->next = aux->next;
         free(aux);
-
-        /*// client is last on the list
-        if (aux->next == NULL) {
-            prev_aux->next = NULL;
-            free(aux);
-        } else {    // client is in the middle of the list
-            prev_aux->next = aux->next;
-            free(aux);
-        }*/
     }
 
     close(client_fd);
