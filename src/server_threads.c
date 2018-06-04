@@ -161,6 +161,7 @@ void *local_client_handler(void *fd){
     
     do {
         read_status = read(client_fd, (void *) &req, sizeof(req));
+        printf("first: req.region: %d | req.type: %d\n", req.region, req.type);
         if (read_status == sizeof(req)) {
             switch (req.type) {
                 case COPY:
@@ -180,10 +181,8 @@ void *local_client_handler(void *fd){
 
                         // synchronize with clipboard network
                         if (mode) { // if in CONNECTED mode
-                            printf("annyong\n");
                             // get data
                             bytes = read(client_fd, buffer, req.data_size);
-                            printf("read\n");
                             if (send_ask_parent(req.region, bytes, buffer) == -1) {
                                 bytes = 0;  // set bytes to 0 to report to the API that an error happened
                                                             printf("error\n");
@@ -219,12 +218,13 @@ void *local_client_handler(void *fd){
                                     read(connected_fd, (void *) &req, sizeof(req)); // should work all the time, unless you're abusing the clipboard
                                     pthread_mutex_unlock(&sync_lock);
                                                                 printf("ansdasdsanyong\n");
-
+                                    printf("req.region: %d | req.type: %d\n", req.region, req.type);
 
                                     switch (req.type) {
                                         case DESYNC_CHILDREN:   // malloc error in the network; store directly in the clipboard, without buffering
+                                        printf("desyn\n");
                                             store_not_buffered(connected_fd, req.region, req.data_size);
-                            printf("annyongdsadsadsadsadsadsadsa\n");
+                                printf("annyongdsadsadsadsadsadsadsa\n");
 
                                             // set bytes to 0 to report to the API that an error happened
                                             bytes = 0;
@@ -233,6 +233,7 @@ void *local_client_handler(void *fd){
 
                                             break;
                                         case SYNC_CHILDREN:
+                                        printf("sync\n");
                                             if ((ssize_t) req.data_size != bytes && ff_realloc(buffer, req.data_size) != NULL) {
                                                 // if the realloc succeeds, update the buffer size variable
                                                 bytes = req.data_size;
@@ -267,6 +268,7 @@ void *local_client_handler(void *fd){
                         pthread_cond_wait(&clipboard[req.region].cond, &clipboard[req.region].cond_mut);
 
                     pthread_mutex_unlock(&clipboard[req.region].cond_mut);
+                    // this fallthrough is on purpose because wait is basically a paste
                 case PASTE:
                     // if no data is stored in the given region reply with 0
                     if (clipboard[req.region].data_size == 0 || clipboard[req.region].data == NULL) {
@@ -363,6 +365,7 @@ void *remote_peer_handler(void *fd){
                                 send_desync_parent(recvd_req.region);
                         } else {    // SINGLE mode
                             bytes = store_buffered(peer_fd, recvd_req.region, recvd_req.data_size, buffer);
+                            printf("args %d %d %d %s\n", peer_fd, recvd_req.region, recvd_req.data_size, (char *) buffer);
                             send_sync_children(recvd_req.region, bytes);
                         }
                     }

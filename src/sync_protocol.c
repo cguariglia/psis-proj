@@ -68,6 +68,9 @@ int store_buffered(int fd, int region, size_t data_size, void *buffer){
 void send_sync_children(int region, size_t data_size){
     // broadcast to children
     request req = {SYNC_CHILDREN, region, data_size};
+
+    printf("(send_sync_children) req: %d %d %d\n", req.type, req.region, req.data_size);
+
     for (client *aux = remote_client_list; aux != NULL; aux = aux->next) {
         write(aux->fd, &req, sizeof(req));
         write(aux->fd, clipboard[region].data, clipboard[region].data_size);
