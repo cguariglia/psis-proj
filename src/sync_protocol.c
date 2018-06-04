@@ -8,17 +8,21 @@ int8_t send_ask_parent(int region, size_t data_size, void *buffer){
     int8_t malloc_status = -1;  // 0 = success; defaults to -1 = error, to avoid verifying the read (if the read fails, use -1)
 
     pthread_mutex_lock(&sync_lock);
-
+    
     // send request
     write(connected_fd, (void *) &req, sizeof(req));
 
     // check if peer has successfully allocated a buffer
     read(connected_fd, (void *) &malloc_status, sizeof(malloc_status));
-
+    
+    printf("me\n");
+    
     // send data
     if (malloc_status == 0) {
         write(connected_fd, buffer, data_size);
     }   // else do nothing; peer won't do anything either
+
+    printf("you\n");
 
     pthread_mutex_unlock(&sync_lock);
 
