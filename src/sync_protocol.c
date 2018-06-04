@@ -15,10 +15,11 @@ int8_t send_ask_parent(int region, size_t data_size, void *buffer){
     // check if peer has successfully allocated a buffer
     read(connected_fd, (void *) &malloc_status, sizeof(malloc_status));
     
+    printf("me\n");
+    
     // send data
     if (malloc_status == 0) {
         write(connected_fd, buffer, data_size);
-        printf("CCCCCCCCCCCONNECTED_FD: %d\n", connected_fd);
     }   // else do nothing; peer won't do anything either
 
     printf("you\n");
@@ -38,11 +39,9 @@ int8_t send_ask_parent(int region, size_t data_size, void *buffer){
  */
 int store_buffered(int fd, int region, size_t data_size, void *buffer){
     // receive data
-    printf("gonna read data_size: %d fd: %d buf: %p\n", data_size, fd, buffer);
     if (fd == connected_fd) pthread_mutex_lock(&sync_lock);
     size_t bytes = read(fd, buffer, data_size);
     if (fd == connected_fd) pthread_mutex_unlock(&sync_lock);
-printf("read, shit\t\tbytes = %d\n", (int)bytes);
 
     // lock for writing
     pthread_rwlock_wrlock(&clipboard[region].rwlock);
@@ -76,8 +75,6 @@ void send_sync_children(int region, size_t data_size){
         write(aux->fd, &req, sizeof(req));
         write(aux->fd, clipboard[region].data, clipboard[region].data_size);
     }
-
-    printf("leavin sync child\n");
 
     return;
 }
