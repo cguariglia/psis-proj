@@ -75,6 +75,8 @@ int main(int argc, char **argv){
         exit(-1);
     }
 
+    mutex_init(&sync_lock);
+
     // arg syntax checking already done before, no need to repeat
     if (argc == 1) {
         mode = SINGLE;

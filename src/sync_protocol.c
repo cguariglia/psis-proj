@@ -7,16 +7,16 @@ int8_t send_ask_parent(int region, size_t data_size, void *buffer){
     request req = {ASK_PARENT, region, data_size};
     int8_t malloc_status = -1;  // 0 = success; defaults to -1 = error, to avoid verifying the read (if the read fails, use -1)
 
-    pthread_mutex_lock(&sync_lock);
-    
+    MUTEX_LOCK(&sync_lock);
+
     // send request
     write(connected_fd, (void *) &req, sizeof(req));
 
     // check if peer has successfully allocated a buffer
     read(connected_fd, (void *) &malloc_status, sizeof(malloc_status));
-    
+
     printf("me\n");
-    
+
     // send data
     if (malloc_status == 0) {
         write(connected_fd, buffer, data_size);
@@ -24,7 +24,7 @@ int8_t send_ask_parent(int region, size_t data_size, void *buffer){
 
     printf("you\n");
 
-    pthread_mutex_unlock(&sync_lock);
+    MUTEX_UNLOCK(&sync_lock);
 
     return malloc_status;
 }
@@ -40,13 +40,13 @@ int8_t send_ask_parent(int region, size_t data_size, void *buffer){
 int store_buffered(int fd, int region, size_t data_size, void *buffer){
     // receive data
     printf("gonna read data_size: %d fd: %d buf: %p\n", data_size, fd, buffer);
-    if (fd == connected_fd) pthread_mutex_lock(&sync_lock);
+    if (fd == connected_fd) MUTEX_LOCK(&sync_lock);
     size_t bytes = read(fd, buffer, data_size);
-    if (fd == connected_fd) pthread_mutex_unlock(&sync_lock);
+    if (fd == connected_fd) MUTEX_UNLOCK(&sync_lock);
 printf("read, shit\n");
 
     // lock for writing
-    pthread_rwlock_wrlock(&clipboard[region].rwlock);
+    RWLOCK_WRLOCK(&clipboard[region].rwlock);
 
     // free older data in region, if there is any
     if (clipboard[region].data != NULL) free(clipboard[region].data);
@@ -56,13 +56,13 @@ printf("read, shit\n");
     clipboard[region].data_size = bytes;
 
     // signal waiting clients
-    pthread_mutex_lock(&clipboard[region].cond_mut);
+    MUTEX_LOCK(&clipboard[region].cond_mut);
     clipboard[region].waiting = 0;
     pthread_cond_broadcast(&clipboard[region].cond);
-    pthread_mutex_unlock(&clipboard[region].cond_mut);
+    MUTEX_UNLOCK(&clipboard[region].cond_mut);
 
     // unlock
-    pthread_rwlock_unlock(&clipboard[region].rwlock);
+    RWLOCK_UNLOCK(&clipboard[region].rwlock);
 
     return data_size;
 }
@@ -85,12 +85,12 @@ void send_sync_children(int region, size_t data_size){
 void send_desync_parent(int region){
     request req = {DESYNC_PARENT, region, clipboard[region].data_size};
 
-    pthread_mutex_lock(&sync_lock);
+    MUTEX_LOCK(&sync_lock);
 
     write(connected_fd, (void *) &req, sizeof(req));
     write(connected_fd, clipboard[region].data, clipboard[region].data_size);
 
-    pthread_mutex_unlock(&sync_lock);
+    MUTEX_UNLOCK(&sync_lock);
 
     return;
 }
@@ -99,24 +99,24 @@ void send_desync_parent(int region){
 // used in desyncs
 void store_not_buffered(int fd, int region, size_t data_size){
     // lock for writing
-    pthread_rwlock_wrlock(&clipboard[region].rwlock);
+    RWLOCK_WRLOCK(&clipboard[region].rwlock);
 
     // allocate memory for the pending data
     ff_realloc(clipboard[region].data, data_size);  // there should always be memory allocated when a desync happens
 
     // store new data
-    if (fd == connected_fd) pthread_mutex_lock(&sync_lock);
+    if (fd == connected_fd) MUTEX_LOCK(&sync_lock);
     clipboard[region].data_size = read(fd, &clipboard[region].data, data_size);
-    if (fd == connected_fd) pthread_mutex_unlock(&sync_lock);
+    if (fd == connected_fd) MUTEX_UNLOCK(&sync_lock);
 
     // signal waiting clients
-    pthread_mutex_lock(&clipboard[region].cond_mut);
+    MUTEX_LOCK(&clipboard[region].cond_mut);
     clipboard[region].waiting = 0;
     pthread_cond_broadcast(&clipboard[region].cond);
-    pthread_mutex_unlock(&clipboard[region].cond_mut);
+    MUTEX_UNLOCK(&clipboard[region].cond_mut);
 
     // unlock
-    pthread_rwlock_unlock(&clipboard[region].rwlock);
+    RWLOCK_UNLOCK(&clipboard[region].rwlock);
 
     return;
 }
