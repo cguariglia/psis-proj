@@ -1,27 +1,33 @@
-/* pastes.c
- * pastes something to std output from a certain region (argv[1]) */
+/* paste.c
+ * pastes something to stdout from a certain region (argv[2]) */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include <clipboard.h>
 
-int main(int argc, char **argv) {
-    if (argc != 2) {
-        printf("./paste region");
+int main(int argc, char *argv[])
+{
+    if (argc != 3) {
+        fprintf(stderr, "%s <clipboard_dir> <region>", argv[0]);
         exit(1);
     }
+
+    int clip = clipboard_connect(argv[1]);
+    if (clip == -1) perror("clipboard_connect failed\n");
     
-    char string[100];
-    int region = strtol(argv[1], NULL, 0);
+    errno = 0;
+    int region = strtol(argv[2], NULL, 0);
+    if (errno != 0) perror("strtol failed\n");
 
-    int clip = clipboard_connect("../../bin");
+    char buffer[100];
+    int bytes = clipboard_paste(clip, region, buffer, sizeof(buffer));
+    if (bytes == 0) perror("clipboard_paste failed\n");
 
-    printf("Pasted %s from region %d (%d bytes)\n", string, region, clipboard_paste(clip, region, string, sizeof(string)));
+    printf("Pasted %s from region %d (%d bytes)\n", buffer, region, bytes);
 
     clipboard_close(clip);
-
-    exit(0);
 }
