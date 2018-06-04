@@ -1,5 +1,5 @@
-/* pastes.c
- * pastes something to std output from a certain region (argv[1]) */
+/* wait.c
+ * waits to paste something to std output from a certain region (argv[1]) */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,12 +14,12 @@ int main(int argc, char **argv) {
         exit(1);
     }
     
-    char string[100];
+    char string[100] = {0};
     int region = strtol(argv[1], NULL, 0);
 
     int clip = clipboard_connect("../../bin");
 
-    printf("Waited to paste %s from region %d (%d bytes)\n", string, region, clipboard_copy(clip, region, string, strlen(string) + 1));
+    printf("Waited to paste %s from region %d (%d bytes)\n", string, region, clipboard_wait(clip, region, string, strlen(string) + 1));
 
     clipboard_close(clip);
 

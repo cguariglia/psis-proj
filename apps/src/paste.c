@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 
     int clip = clipboard_connect("../../bin");
 
-    printf("Pasted %s from region %d (%d bytes)\n", string, region, clipboard_copy(clip, region, string, strlen(string) + 1));
+    printf("Pasted %s from region %d (%d bytes)\n", string, region, clipboard_paste(clip, region, string, strlen(string) + 1));
 
     clipboard_close(clip);
 

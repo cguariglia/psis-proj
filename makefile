@@ -48,7 +48,7 @@ wait: dirs_apps lib $(APPDIR)/$(LIBDIR)/wait.o
 print_clipboard: dirs_apps lib $(APPDIR)/$(LIBDIR)/print_clipboard.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(word 3,$^) $(LIBDIR)/clipboard.o -o $(APPDIR)/$(BINDIR)/print_clipboard
 
-apps: copy paste print_clipboard
+apps: copy paste wait print_clipboard
 
 all: server apps
 
