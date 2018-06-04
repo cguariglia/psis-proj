@@ -175,27 +175,17 @@ void *local_client_handler(void *fd){
                     } else {                // buffer successfuly allocated
                         // store requested region
                         int region = req.region;
-                        
-                        // report successful malloc (status initialized to 'success')
-                        write(client_fd, (void *) &malloc_status, sizeof(malloc_status));   // receiver checks message integrity
 
                         // synchronize with clipboard network
                         if (mode) { // if in CONNECTED mode
+                            // report successful malloc (status initialized to 'success')
+                            write(client_fd, (void *) &malloc_status, sizeof(malloc_status));   // receiver checks message integrity
+                        
                             // get data
                             bytes = read(client_fd, buffer, req.data_size);
-                            printf("bytes: %d\n", bytes);
                             if (send_ask_parent(req.region, bytes, buffer) == -1) {
                                 bytes = 0;  // set bytes to 0 to report to the API that an error happened
-                                    printf("error\n");
-
                             } else {
-                                // send data
-                                pthread_mutex_lock(&sync_lock);
-                                write(connected_fd, buffer, bytes);
-                                pthread_mutex_unlock(&sync_lock);
-
-                                                            printf("annyong2\n");
-
                                 // wait for parent's response
 
                                 /* Error checking here is not possible because it would require
@@ -218,14 +208,10 @@ void *local_client_handler(void *fd){
                                     // reutilize req variable
                                     read(connected_fd, (void *) &req, sizeof(req)); // should work all the time, unless you're abusing the clipboard
                                     pthread_mutex_unlock(&sync_lock);
-                                                                printf("ansdasdsanyong\n");
-                                    printf("req.region: %d | req.type: %d\n", req.region, req.type);
-
+                                    
                                     switch (req.type) {
                                         case DESYNC_CHILDREN:   // malloc error in the network; store directly in the clipboard, without buffering
-                                        printf("desyn\n");
                                             store_not_buffered(connected_fd, req.region, req.data_size);
-                                printf("annyongdsadsadsadsadsadsadsa\n");
 
                                             // set bytes to 0 to report to the API that an error happened
                                             bytes = 0;
@@ -234,14 +220,11 @@ void *local_client_handler(void *fd){
 
                                             break;
                                         case SYNC_CHILDREN:
-                                        printf("sync\n");
                                             if ((ssize_t) req.data_size != bytes && ff_realloc(buffer, req.data_size) != NULL) {
                                                 // if the realloc succeeds, update the buffer size variable
                                                 bytes = req.data_size;
                                             }
                                             // if the realloc fails, store only up to the old buffer size (buffer is left untouched)
-                                                                        printf("kill me\n");
-
                                             bytes = store_buffered(connected_fd, req.region, bytes, buffer);
                                             send_sync_children(req.region, bytes);
 
@@ -360,7 +343,7 @@ void *remote_peer_handler(void *fd){
                             // receive incoming data
                             if (peer_fd == connected_fd) pthread_mutex_lock(&sync_lock);
                             bytes = read(peer_fd, buffer, recvd_req.data_size);
-                            if (peer_fd == connected_fd) pthread_mutex_lock(&sync_lock);
+                            if (peer_fd == connected_fd) pthread_mutex_unlock(&sync_lock);
 
                             if (send_ask_parent(recvd_req.region, bytes, buffer) == -1)
                                 send_desync_parent(recvd_req.region);
@@ -382,7 +365,7 @@ void *remote_peer_handler(void *fd){
                         // SYNC_CHILDREN will always be received by children, i.e. servers in CONNECTED mode
                         send_desync_parent(recvd_req.region);
                     } else {
-                        bytes = store_buffered(peer_fd, recvd_req.region, bytes, buffer);
+                        bytes = store_buffered(peer_fd, recvd_req.region, recvd_req.data_size, buffer);
                         send_sync_children(recvd_req.region, bytes);
                     }
                     break;
