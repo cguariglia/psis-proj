@@ -161,7 +161,7 @@ void *local_client_handler(void *fd){
     
     do {
         read_status = read(client_fd, (void *) &req, sizeof(req));
-        printf("first: req.region: %d | req.type: %d\n", req.region, req.type);
+        printf("first: req.region: %d | req.type: %d | req.data_size: %d\n", req.region, req.type, req.data_size);
         if (read_status == sizeof(req)) {
             switch (req.type) {
                 case COPY:
@@ -183,9 +183,10 @@ void *local_client_handler(void *fd){
                         if (mode) { // if in CONNECTED mode
                             // get data
                             bytes = read(client_fd, buffer, req.data_size);
+                            printf("bytes: %d\n", bytes);
                             if (send_ask_parent(req.region, bytes, buffer) == -1) {
                                 bytes = 0;  // set bytes to 0 to report to the API that an error happened
-                                                            printf("error\n");
+                                    printf("error\n");
 
                             } else {
                                 // send data
@@ -364,8 +365,8 @@ void *remote_peer_handler(void *fd){
                             if (send_ask_parent(recvd_req.region, bytes, buffer) == -1)
                                 send_desync_parent(recvd_req.region);
                         } else {    // SINGLE mode
+                            printf("args fd %d region %d data_size %d buf %s buf %p\n", peer_fd, recvd_req.region, recvd_req.data_size, (char *) buffer, buffer);
                             bytes = store_buffered(peer_fd, recvd_req.region, recvd_req.data_size, buffer);
-                            printf("args %d %d %d %s\n", peer_fd, recvd_req.region, recvd_req.data_size, (char *) buffer);
                             send_sync_children(recvd_req.region, bytes);
                         }
                     }

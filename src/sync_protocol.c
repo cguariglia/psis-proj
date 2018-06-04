@@ -39,9 +39,11 @@ int8_t send_ask_parent(int region, size_t data_size, void *buffer){
  */
 int store_buffered(int fd, int region, size_t data_size, void *buffer){
     // receive data
+    printf("gonna read data_size: %d fd: %d buf: %p\n", data_size, fd, buffer);
     if (fd == connected_fd) pthread_mutex_lock(&sync_lock);
     size_t bytes = read(fd, buffer, data_size);
     if (fd == connected_fd) pthread_mutex_unlock(&sync_lock);
+printf("read, shit\n");
 
     // lock for writing
     pthread_rwlock_wrlock(&clipboard[region].rwlock);
